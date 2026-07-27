@@ -1,0 +1,28 @@
+---
+description: SoilGood coding standards — modular UI, folders, theme, no silent fallbacks, comments
+alwaysApply: true
+---
+
+# Coding Standards
+
+## Permission gate
+No app implementation until the user explicitly allows coding (see `agent-workflow.mdc`).
+
+## Structure
+- Prefer modular code; do not artificially shrink a feature — write as much as the feature needs.
+- Related UI for one feature goes in a **dedicated folder**, not scattered files.
+- Prefer **reusable widgets** for buttons, cards, inputs, skeletons when the pattern repeats.
+- Keep **logic separate from design/UI**.
+
+## Design & data
+- Design for **farmer UX**, not for DB/API schema.
+- Follow `docs/context/UI_THEME.md` (colors, Literata / Nunito Sans, alignment).
+- Think ahead: do not ship code you already know will be thrown away next step.
+- During development: **no silent default fallbacks**. Fail visibly.
+
+## Comments
+- **Every Dart file** starts with an **explanatory** `///` file-purpose header + `library;` (where it sits in the app, what it is for). See `dart-file-headers.mdc` — not thin one-liners.
+- Short comment on each function or feature you add so intent is clear later.
+
+## Suggestions
+- Suggest improvements that make the app clearer, more maintainable, or better for farmers (including UI and approach).

@@ -1,0 +1,57 @@
+---
+description: Every Dart file must start with an explanatory purpose header (role in the app)
+globs: "**/*.dart"
+alwaysApply: true
+---
+
+# Dart File Headers
+
+## Requirement
+Every Dart file under `lib/` **must** start with an **explanatory** file-purpose header so a reader immediately understands:
+1. **What kind of file** this is (shell tab page, pushed page, repository, widget, theme, etc.)
+2. **Where it sits** in SoilGood (e.g. content area of the app shell, outside the shell, data layer only)
+3. **What it is for** / who uses it
+
+Do **not** write vague one-liners like “Home page” or “Auth helpers.” Write like you are explaining to a teammate who opens the file cold.
+
+## Format
+`///` doc comment first, then `library;` (required so the analyzer does not report `dangling_library_doc_comments`):
+
+```dart
+/// Explanatory first sentence: kind of file + role in the app.
+///
+/// Second paragraph: where it appears / who calls it / what data it owns.
+/// Keep farmer/product context when useful.
+library;
+
+import '...';
+```
+
+## Rules
+- Prefer **2–4 short sentences** (can be 2–3 `///` paragraphs). Still readable — not an essay.
+- Say **where UI lives**: shell content area, pushed route outside shell, auth/onboarding before shell, shared chrome, etc.
+- Say **layer** when not UI: data/repository, controller/logic, model, service, theme/config.
+- Always include `library;` right after the header.
+- Class/function docs stay separate and shorter; do not dump the whole API in the file header.
+- New Dart file → write this header **first**. Missing header on edit → add it.
+
+## Good example
+
+```dart
+/// Home feature page shown inside the app shell content area (first bottom-nav tab).
+///
+/// This is what the farmer sees after login/onboarding: live soil readings from
+/// Supabase plus the Open-Meteo forecast for their saved farm pin. Not a pushed
+/// route — the bottom nav stays mounted while this page is visible.
+library;
+```
+
+## Bad example (too thin)
+
+```dart
+/// Home dashboard — live soil + weather.
+library;
+```
+
+## Also required
+Short comments on non-trivial functions remain required (see `coding-standards.mdc`).

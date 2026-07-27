@@ -1,0 +1,32 @@
+---
+description: SoilGood project context, goals, and features — always apply
+alwaysApply: true
+---
+
+# SoilGood Project Context
+
+This is **SoilGood**, a Flutter IoT + AI mobile app for Philippine farmers.
+
+## Core purpose
+Help farmers make informed irrigation, nutrient, and crop decisions using real-time soil data, weather, AI recommendations, and historical analytics.
+
+## Hardware
+ESP32 + soil moisture, pH, temperature, EC, and NPK sensors. Persist ~every **15 minutes**.
+
+## Stack (locked)
+- Flutter app + **Supabase** (Free) + prefer **free** APIs
+- UI theme: `docs/context/UI_THEME.md` (primary `#4A7C59`, matte white, Literata + Nunito Sans)
+
+## Features to implement
+1. Real-time soil monitoring dashboard
+2. Weather API (current + forecast)
+3. Historical monitoring records
+4. AI recommendations (soil assessment, irrigation, management actions, crop suitability)
+5. Analytics from history (trends, irrigation patterns, nutrient depletion, soil health score, weather–soil correlation, seasonal crop suitability, simple predictions)
+
+## Important conventions
+- App name is **SoilGood**
+- Always check `docs/context/` and `docs/pages/` before building
+- Persist timestamped sensor + weather data early — required for analytics
+- App shell: persistent nav; content area only swaps/loads
+- Prefer practical farmer-facing UX over complex dashboards

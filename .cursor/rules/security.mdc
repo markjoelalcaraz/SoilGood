@@ -1,0 +1,15 @@
+---
+description: SoilGood security basics — secrets, RLS, auth, device writes, validation
+alwaysApply: true
+---
+
+# Security Basics
+
+Full detail: `docs/context/SECURITY.md`.
+
+- No hardcoded secrets; keep `.env` out of git.
+- Flutter: Supabase **anon** key only — never **service_role** in the client.
+- Enable **RLS** on all tables; users only access their own data.
+- ESP32: constrained INSERT path — not service_role.
+- Validate sensor ranges; out-of-range fails visibly.
+- HTTPS; secure storage for auth tokens when Auth is on.

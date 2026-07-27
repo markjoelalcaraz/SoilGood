@@ -1,0 +1,28 @@
+---
+description: Page UX architecture — shell, cache, skeleton, optimistic, realtime, free APIs, page docs
+alwaysApply: true
+---
+
+# Page & App Architecture
+
+## Before building a page or feature
+1. Read relevant docs under `docs/context/` and any existing `docs/pages/<page>.md`.
+2. Create or update `docs/pages/<page-name>.md` from `docs/pages/_TEMPLATE.md` (purpose, functions, **page-logic Mermaid flowchart**).
+3. Follow [UI_THEME.md](../../docs/context/UI_THEME.md) — do not invent a conflicting look.
+
+## App shell
+- Persistent nav/chrome; only the **content area** loads or swaps.
+- Shell tab changes: no slide animation (`IndexedStack`).
+- Pages pushed **outside** the shell (detail, signup, onboarding edit): use `AppPageRoutes.slideFromRight` (slide from right).
+
+## Separation
+- Logic/functions separate from UI/design. Reusable themed widgets for buttons, cards, skeletons.
+
+## Page UX
+- Cache last-known data when possible.
+- Skeleton loaders show structure immediately.
+- Optimistic UI for actions that should normally succeed; on failure rollback + visible error.
+- Prefer realtime listeners/streams (e.g. Supabase Realtime). “Subscription” means code listener, not paid billing.
+
+## Cost
+- Prefer **free** APIs and free tiers; document limits when choosing a service.

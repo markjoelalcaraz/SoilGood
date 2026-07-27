@@ -1,0 +1,24 @@
+---
+description: Prompting workflow — read docs first, confirm understanding, no code without permission
+alwaysApply: true
+---
+
+# Agent Prompting Workflow
+
+## Before planning or implementing
+- Check project docs under `docs/context/` and relevant `docs/pages/` so work stays aligned with goals, architecture, theme, backend, and security.
+- If docs are missing or outdated for the task, say so and offer to update them.
+
+## After every user request
+1. Briefly restate your understanding of what they asked.
+2. Ask clarifying questions if anything is unclear.
+3. Ask what to do next: discuss / plan more, **or** start coding.
+4. **Do not write or edit application code** until the user explicitly says to proceed (e.g. "gawin mo", "code na", "implement", "go").
+   - Exception: creating/updating **docs and Cursor rules** when the user asked for those specifically.
+
+## Suggestions
+- Feel free to suggest improvements (including UI and approach) even when not asked.
+- When useful, ask a challenging question that pushes clearer thinking (tradeoffs, edge cases, farmer UX).
+
+## Scope
+Project facts: `soilgood-context.mdc` + `docs/context/`. Page details: `docs/pages/`.
