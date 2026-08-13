@@ -1,0 +1,55 @@
+---
+description: Minimalist overlay scrollbars — thin, no track, auto-hide; never the thick OS/Chrome bar
+alwaysApply: true
+---
+
+# Minimalist scrollbars
+
+Child of `page-architecture.mdc` (same folder). SoilGood is editorial and phone-first. Scrollbars must stay **thin and quiet** — overlay, no track, auto-hide while idle. Do not ship the thick Windows/Chrome default.
+
+Set this **once** in theme / `web/` CSS. Do not restyle scrollbars per page.
+
+## Look
+- **Thickness:** ~4–6px (thumb only).
+- **Track:** transparent (no gray gutter).
+- **Thumb:** muted charcoal/outline, ~28% opacity; slightly stronger on hover. Not primary green.
+- **Radius:** ~8px (rounded rectangle, not a capsule).
+- **Visibility:** show while scrolling; hide when idle. Never a permanent fat bar.
+- **Horizontal strips** (forecast, chips): no persistent bar — swipe/trackpad only.
+
+## Flutter (all platforms, including Chrome)
+
+```dart
+scrollbarTheme: ScrollbarThemeData(
+  thickness: const WidgetStatePropertyAll(4),
+  radius: const Radius.circular(8),
+  thumbColor: WidgetStatePropertyAll(
+    AppColors.textSecondary.withValues(alpha: 0.28),
+  ),
+  trackVisibility: const WidgetStatePropertyAll(false),
+  thumbVisibility: const WidgetStatePropertyAll(false),
+  interactive: true,
+),
+```
+
+Do not wrap every `ListView` in a custom `Scrollbar`. Theme covers it. Do not set `scrollBehavior` to hide bars entirely on web — farmers still need a scroll cue.
+
+## Flutter web (`web/index.html` or a linked CSS)
+
+Browser overflow (html/body) is **not** themed by Flutter. Add:
+
+```css
+html { scrollbar-width: thin; scrollbar-color: rgba(74, 78, 74, 0.35) transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(74, 78, 74, 0.28);
+  border-radius: 8px;
+}
+```
+
+## Do not
+- Thick 12–16px OS/Material bars
+- Colored primary-green thumbs
+- Always-visible track
+- `display: none` on all scrollbars (no way to see leftover content on web)

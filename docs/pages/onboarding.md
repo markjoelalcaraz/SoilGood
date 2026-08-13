@@ -12,7 +12,7 @@
 - Session-aware `AuthGate` routed by onboarding status
 - **Step 1 Profile** — saves to `profiles`
 - **Step 2 Farm location** — GPS + map pin (tap to move), **Carto Voyager** tiles, saves to `farms`
-- **Step 3 Device claim** — `device_uid` → `devices` (skippable)
+- **Step 3 Device claim** — `device_uid` → `devices` (skippable); shows `ingest_token` for ESP32 `secrets.h`
 - App shell with Home / Analytics / Crops / Profile
 - **Live soil readings** on Home via Supabase stream (empty state if none)
 
@@ -21,6 +21,7 @@
 - Live weather API
 - AI module wired to live readings
 - QR device claim
+- Profile screen copy of `ingest_token` for already-claimed devices
 - Reverse-geocoding address from pin (optional)
 
 ## Purpose / goal

@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/navigation/app_page_routes.dart';
+import '../../../shared/widgets/app_content_width.dart';
 import '../../../shared/widgets/ui_primitives.dart';
 import '../../auth/presentation/widgets/auth_error_banner.dart';
 import '../../auth/presentation/widgets/auth_primary_button.dart';
@@ -119,13 +120,16 @@ class _ProfileOnboardingPageState extends State<ProfileOnboardingPage> {
         automaticallyImplyLeading: widget.fromProfile,
         title: Text(
           widget.fromProfile ? 'Edit Profile' : 'Set up your profile',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.literata(fontWeight: FontWeight.w700),
         ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
-              child: ListView(
+              child: AppContentWidth(
+                child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
                 children: [
                   SoftCard(
@@ -239,6 +243,7 @@ class _ProfileOnboardingPageState extends State<ProfileOnboardingPage> {
                 ],
               ),
             ),
+          ),
     );
   }
 }

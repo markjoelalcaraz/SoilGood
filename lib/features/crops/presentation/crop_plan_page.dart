@@ -1,143 +1,184 @@
-/// Crop Plan detail page pushed on top of the shell (slide from right), not a bottom-nav tab.
+/// In-tab crop plan body for the Crops shell tab (not a pushed route).
 ///
-/// Shows a deeper plan for one selected crop. The shell may still exist underneath,
-/// but this screen is a full-page route the farmer opens from the Crops tab.
+/// Shown only when the farm has an active planting: cultivation phases,
+/// day/harvest estimates, and Groq care insights. The shell bottom nav stays.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/ai/saved_assessment.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/ui_primitives.dart';
+import '../data/planting.dart';
+import '../logic/crop_timeline.dart';
 
-/// Crop cultivation plan detail — UI / navigation only.
-class CropPlanPage extends StatelessWidget {
-  const CropPlanPage({required this.cropName, super.key});
+/// Cultivation plan + care tips for the selected crop.
+class CropPlanView extends StatelessWidget {
+  const CropPlanView({
+    required this.planting,
+    required this.timeline,
+    required this.onChangeCrop,
+    this.assessment,
+    this.aiError,
+    this.aiLoading = false,
+    this.actionError,
+    super.key,
+  });
 
-  final String cropName;
+  final Planting planting;
+  final CropTimeline? timeline;
+  final VoidCallback onChangeCrop;
+  final SavedAssessment? assessment;
+  final Object? aiError;
+  final bool aiLoading;
+  final Object? actionError;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.primary,
-        title: Text(
-          'Crop Plan',
-          style: GoogleFonts.literata(fontWeight: FontWeight.w700),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-        children: [
+    final crop = planting.crop;
+    final t = timeline;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (actionError != null) ...[
           SoftCard(
-            color: AppColors.primary,
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const StatusChip(
-                  label: 'ACTIVE PLAN',
-                  tone: StatusChipTone.good,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  cropName,
-                  style: GoogleFonts.literata(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  'Sample cultivation plan • Day 14 of 90',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
-                ),
-              ],
+            color: AppColors.errorContainer,
+            child: Text(
+              '$actionError',
+              style: const TextStyle(color: Color(0xFF690005), height: 1.5),
             ),
           ),
-          const SizedBox(height: 20),
-          const SectionHeader(title: 'Cultivation Phases'),
           const SizedBox(height: 12),
+        ],
+        SoftCard(
+          color: AppColors.primary,
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const StatusChip(
+                label: 'ACTIVE PLAN',
+                tone: StatusChipTone.good,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                crop.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.literata(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (crop.scientificName != null)
+                Text(
+                  crop.scientificName!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              const SizedBox(height: 8),
+              Text(
+                t == null
+                    ? 'Catalog is missing days/phases. Run supabase_crops_home_ai.sql.'
+                    : 'Day ${t.dayNumber} of ${t.totalDays} · '
+                        '${t.daysLeft} day${t.daysLeft == 1 ? '' : 's'} to harvest · '
+                        '${_md(t.harvestDate)}',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.9)),
+              ),
+            ],
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: onChangeCrop,
+            child: const Text('Change crop'),
+          ),
+        ),
+        const SectionHeader(title: 'Cultivation Phases'),
+        const SizedBox(height: 12),
+        if (t == null)
+          const SoftCard(
+            child: Text(
+              'Cannot show phases until the crop catalog has days_to_maturity and phases.',
+              style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+            ),
+          )
+        else
           SizedBox(
             height: 160,
-            child: ListView(
+            child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              children: const [
-                _PhaseCard(
-                  title: 'Pre-planting',
-                  body: 'Tilling & base nutrients',
-                  done: true,
-                ),
-                _PhaseCard(
-                  title: 'Planting',
-                  body: 'Current phase — monitor germination',
-                  current: true,
-                ),
-                _PhaseCard(
-                  title: 'Growth',
-                  body: 'Watch water stress & canopy',
-                ),
-                _PhaseCard(
-                  title: 'Harvest',
-                  body: 'Target window later in season',
-                ),
-              ],
+              itemCount: t.phases.length,
+              itemBuilder: (context, i) {
+                final phase = t.phases[i];
+                return _PhaseCard(
+                  title: phase.label,
+                  body: '${phase.days} day${phase.days == 1 ? '' : 's'}',
+                  done: i < t.currentIndex,
+                  current: i == t.currentIndex,
+                );
+              },
             ),
           ),
-          const SizedBox(height: 20),
-          const SectionHeader(title: 'Smart Tips', icon: Icons.psychology),
+        const SizedBox(height: 20),
+        const SectionHeader(title: 'Care insights', icon: Icons.psychology),
+        const SizedBox(height: 4),
+        const Text(
+          'How to maintain this crop and soil in the current phase.',
+          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+        ),
+        const SizedBox(height: 12),
+        if (aiError != null) ...[
+          SoftCard(
+            color: AppColors.errorContainer,
+            child: Text(
+              'Care insights unavailable:\n$aiError',
+              style: const TextStyle(color: Color(0xFF690005), height: 1.5),
+            ),
+          ),
           const SizedBox(height: 12),
+        ],
+        if (aiLoading && assessment == null)
+          const SoftCard(
+            color: AppColors.surfaceMuted,
+            child: SizedBox(height: 140),
+          )
+        else if (assessment != null) ...[
           SoftCard(
-            child: _TipRow(
-              icon: Icons.water_drop,
-              title: 'Irrigation',
-              value: 'Every 3 days',
-              note: 'Next: Tomorrow 6:00 AM',
+            child: Text(
+              assessment!.overview,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
             ),
           ),
           const SizedBox(height: 10),
-          SoftCard(
-            child: _TipRow(
-              icon: Icons.science,
-              title: 'Fertilizer',
-              value: 'Light nitrogen',
-              note: 'After rain for better uptake',
-            ),
-          ),
-          const SizedBox(height: 10),
-          SoftCard(
-            color: AppColors.secondaryContainer,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Soil checklist',
-                  style: GoogleFonts.literata(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 17,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const _CheckItem(
-                  label: 'Confirm moisture before irrigating',
-                  done: true,
-                ),
-                const _CheckItem(
-                  label: 'Watch nitrogen after next rain',
-                  done: false,
-                ),
-                const _CheckItem(
-                  label: 'Log fertilizer when applied',
-                  done: false,
-                ),
-              ],
+          ...assessment!.recommendations.map(
+            (r) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _CareTip(rec: r),
             ),
           ),
         ],
-      ),
+      ],
     );
+  }
+
+  static String _md(DateTime d) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[d.month - 1]} ${d.day}';
   }
 }
 
@@ -192,6 +233,8 @@ class _PhaseCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.literata(
               fontWeight: FontWeight.w700,
               fontSize: 17,
@@ -200,6 +243,8 @@ class _PhaseCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             body,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppColors.textSecondary,
               fontSize: 13,
@@ -212,78 +257,66 @@ class _PhaseCard extends StatelessWidget {
   }
 }
 
-class _TipRow extends StatelessWidget {
-  const _TipRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.note,
-  });
+class _CareTip extends StatelessWidget {
+  const _CareTip({required this.rec});
 
-  final IconData icon;
-  final String title;
-  final String value;
-  final String note;
+  final AiRecommendation rec;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: AppColors.primary),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-              Text(
-                value,
-                style: GoogleFonts.literata(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                ),
-              ),
-              Text(
-                note,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
+    final icon = switch (rec.type) {
+      'irrigation' => Icons.water_drop,
+      'nutrient' => Icons.science,
+      _ => Icons.grass,
+    };
 
-class _CheckItem extends StatelessWidget {
-  const _CheckItem({required this.label, required this.done});
-  final String label;
-  final bool done;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+    return SoftCard(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            done ? Icons.check_circle : Icons.radio_button_unchecked,
-            size: 18,
-            color: done ? AppColors.primary : AppColors.outline,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppColors.primary),
           ),
-          const SizedBox(width: 8),
-          Expanded(child: Text(label)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  rec.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  rec.recommendedAction.isNotEmpty
+                      ? rec.recommendedAction
+                      : rec.description,
+                  style: GoogleFonts.literata(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                    height: 1.3,
+                  ),
+                ),
+                if (rec.description.isNotEmpty &&
+                    rec.recommendedAction.isNotEmpty)
+                  Text(
+                    rec.description,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );

@@ -38,6 +38,16 @@ abstract final class AppTheme {
             bodyColor: AppColors.textPrimary,
             displayColor: AppColors.textPrimary,
           ),
+      scrollbarTheme: ScrollbarThemeData(
+        thickness: const WidgetStatePropertyAll(4),
+        radius: const Radius.circular(8),
+        thumbColor: WidgetStatePropertyAll(
+          AppColors.textSecondary.withValues(alpha: 0.28),
+        ),
+        trackVisibility: const WidgetStatePropertyAll(false),
+        thumbVisibility: const WidgetStatePropertyAll(false),
+        interactive: true,
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.background,

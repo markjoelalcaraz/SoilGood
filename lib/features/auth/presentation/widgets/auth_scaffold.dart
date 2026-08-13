@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_content_width.dart';
 
 /// Shared responsive editorial shell for login and signup forms.
 class AuthScaffold extends StatelessWidget {
@@ -26,6 +27,7 @@ class AuthScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < 360;
     return Scaffold(
       body: Stack(
         children: [
@@ -42,9 +44,11 @@ class AuthScaffold extends StatelessWidget {
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(narrow ? 16 : 24),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
+                  constraints: const BoxConstraints(
+                    maxWidth: kAuthContentMaxWidth,
+                  ),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: AppColors.surface,
@@ -58,9 +62,9 @@ class AuthScaffold extends StatelessWidget {
                       ],
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 40,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: narrow ? 20 : 32,
+                        vertical: narrow ? 28 : 40,
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -80,7 +84,7 @@ class AuthScaffold extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: GoogleFonts.literata(
                               color: AppColors.textPrimary,
-                              fontSize: 34,
+                              fontSize: narrow ? 28 : 34,
                               fontWeight: FontWeight.w700,
                               height: 1.15,
                             ),

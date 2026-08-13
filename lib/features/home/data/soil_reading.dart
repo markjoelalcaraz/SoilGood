@@ -1,7 +1,7 @@
 /// Data model for one soil sensor sample used by the Home dashboard.
 ///
 /// Maps fields from the Supabase soil_readings table (moisture, pH, temp, EC,
-/// NPK, validation). Not a UI file — Home widgets display instances of this.
+/// salinity, NPK, validation). Not a UI file — Home widgets display instances of this.
 library;
 
 /// One timestamped soil sensor sample from Supabase.
@@ -13,6 +13,7 @@ class SoilReading {
     this.ph,
     this.soilTemperatureC,
     this.ec,
+    this.salinity,
     this.nitrogen,
     this.phosphorus,
     this.potassium,
@@ -26,6 +27,8 @@ class SoilReading {
   final double? ph;
   final double? soilTemperatureC;
   final double? ec;
+  /// Soil salinity in ppt (parts per thousand) from the 8-in-1 probe.
+  final double? salinity;
   final double? nitrogen;
   final double? phosphorus;
   final double? potassium;
@@ -40,6 +43,7 @@ class SoilReading {
       ph: (json['ph'] as num?)?.toDouble(),
       soilTemperatureC: (json['soil_temperature_c'] as num?)?.toDouble(),
       ec: (json['ec'] as num?)?.toDouble(),
+      salinity: (json['salinity'] as num?)?.toDouble(),
       nitrogen: (json['nitrogen'] as num?)?.toDouble(),
       phosphorus: (json['phosphorus'] as num?)?.toDouble(),
       potassium: (json['potassium'] as num?)?.toDouble(),

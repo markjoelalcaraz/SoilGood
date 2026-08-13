@@ -13,6 +13,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/maps/app_map_tiles.dart';
 import '../../../shared/navigation/app_page_routes.dart';
+import '../../../shared/widgets/app_content_width.dart';
 import '../../../shared/widgets/ui_primitives.dart';
 import '../../auth/presentation/widgets/auth_error_banner.dart';
 import '../../auth/presentation/widgets/auth_primary_button.dart';
@@ -146,7 +147,8 @@ class _LocationOnboardingPageState extends State<LocationOnboardingPage> {
           ),
         ],
       ),
-      body: Column(
+      body: AppContentWidth(
+        child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -272,6 +274,7 @@ class _LocationOnboardingPageState extends State<LocationOnboardingPage> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

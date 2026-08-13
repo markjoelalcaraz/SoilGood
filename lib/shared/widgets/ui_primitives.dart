@@ -1,13 +1,52 @@
 /// Shared UI building blocks reused across shell tabs and feature pages.
 ///
-/// SoftCard, section headers, and similar primitives live here so Home,
-/// Analytics, Crops, and Profile stay visually consistent without copy-paste.
+/// SoftCard, section headers, phone breakpoints, and two-up layout live here
+/// so Home, Analytics, Crops, and Profile stay consistent on small phones.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_colors.dart';
+
+/// True when two-up cards would squeeze on a small phone (~320–360px).
+bool isNarrowPhone(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < 360;
+
+/// Lays out [first] and [second] side-by-side, or stacked on a narrow phone.
+class ResponsiveTwoUp extends StatelessWidget {
+  const ResponsiveTwoUp({
+    required this.first,
+    required this.second,
+    this.gap = 10,
+    super.key,
+  });
+
+  final Widget first;
+  final Widget second;
+  final double gap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isNarrowPhone(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          first,
+          SizedBox(height: gap),
+          second,
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: first),
+        SizedBox(width: gap),
+        Expanded(child: second),
+      ],
+    );
+  }
+}
 
 /// Soft metric / insight card used across dashboard screens.
 class SoftCard extends StatelessWidget {
@@ -72,6 +111,8 @@ class SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.literata(
               fontSize: 22,
               fontWeight: FontWeight.w700,
@@ -118,6 +159,8 @@ class StatusChip extends StatelessWidget {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: colors.$2,
           fontSize: 11,

@@ -14,6 +14,7 @@ One or two sentences: what problem this page solves for the farmer.
 ## User flow
 - What the farmer sees
 - Primary actions (taps, filters, buttons)
+- Pull-to-refresh if this page shows system data (required — see `.cursor/rules/page-architecture/pull-to-refresh.mdc`)
 
 ## Data & sources
 - Where data comes from (sensors, weather API, Supabase, local cache, etc.)
@@ -26,6 +27,7 @@ One or two sentences: what problem this page solves for the farmer.
 | Skeleton | Structure of the page while loading |
 | Cached | Last known data immediately |
 | Live | Updated from stream / fetch |
+| Refreshing | Pull-to-refresh; keep last-known data; refetch all sources |
 | Empty | Clear empty message |
 | Error | Visible failure (no silent fallback) |
 

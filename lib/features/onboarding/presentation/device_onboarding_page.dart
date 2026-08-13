@@ -5,10 +5,12 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/navigation/app_page_routes.dart';
+import '../../../shared/widgets/app_content_width.dart';
 import '../../../shared/widgets/ui_primitives.dart';
 import '../../auth/presentation/widgets/auth_error_banner.dart';
 import '../../auth/presentation/widgets/auth_primary_button.dart';
@@ -37,6 +39,42 @@ class _DeviceOnboardingPageState extends State<DeviceOnboardingPage> {
     super.dispose();
   }
 
+  /// Shows device_uid + ingest_token to copy into the ESP32 sketch.
+  Future<void> _showIngestSecrets(String deviceUid, String token) {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(
+            'Copy into ESP32',
+            style: GoogleFonts.literata(fontWeight: FontWeight.w700),
+          ),
+          content: SingleChildScrollView(
+            child: SelectableText(
+              'DEVICE_UID:\n$deviceUid\n\nINGEST_TOKEN:\n$token\n\n'
+              'Paste these into firmware secrets.h. '
+              'Do not share the token.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await Clipboard.setData(
+                  ClipboardData(
+                    text: 'DEVICE_UID=$deviceUid\nINGEST_TOKEN=$token',
+                  ),
+                );
+                if (ctx.mounted) Navigator.of(ctx).pop();
+              },
+              child: const Text('Copy & continue'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// Links the device then opens the main shell.
   Future<void> _claim() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -47,7 +85,9 @@ class _DeviceOnboardingPageState extends State<DeviceOnboardingPage> {
     });
 
     try {
-      await _repo.claimDevice(deviceUid: _deviceUid.text);
+      final token = await _repo.claimDevice(deviceUid: _deviceUid.text);
+      if (!mounted) return;
+      await _showIngestSecrets(_deviceUid.text.trim(), token);
       if (!mounted) return;
       Navigator.of(
         context,
@@ -73,7 +113,8 @@ class _DeviceOnboardingPageState extends State<DeviceOnboardingPage> {
           style: GoogleFonts.literata(fontWeight: FontWeight.w700),
         ),
       ),
-      body: ListView(
+      body: AppContentWidth(
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
         children: [
           SoftCard(
@@ -147,6 +188,7 @@ class _DeviceOnboardingPageState extends State<DeviceOnboardingPage> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

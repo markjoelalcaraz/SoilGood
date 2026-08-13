@@ -1,7 +1,8 @@
 /// Weather service that calls the free Open-Meteo HTTP API (no API key).
 ///
 /// Home asks this service for current + multi-day forecast using the farm's
-/// lat/long. Failures are thrown upward so the UI can show them visibly.
+/// lat/long. Analytics asks [fetchDailyRange] for the selected date window.
+/// Failures are thrown upward so the UI can show them visibly.
 library;
 
 import 'dart:convert';
@@ -93,6 +94,92 @@ class OpenMeteoWeatherService {
       fetchedAt: DateTime.now().toUtc(),
       daily: days,
     );
+  }
+
+  /// Daily rain + temp for an inclusive calendar range (Analytics, not Home).
+  ///
+  /// Uses the forecast API for the last ~90 days (includes today). Older
+  /// windows use the archive API. Not current-conditions tiles.
+  Future<List<DailyForecast>> fetchDailyRange({
+    required double latitude,
+    required double longitude,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final startDay = DateTime(start.year, start.month, start.day);
+    final useArchive = today.difference(startDay).inDays > 90;
+    final base = useArchive
+        ? 'https://archive-api.open-meteo.com/v1/archive'
+        : _base;
+
+    final uri = Uri.parse(base).replace(
+      queryParameters: {
+        'latitude': latitude.toString(),
+        'longitude': longitude.toString(),
+        'start_date': _isoDate(start),
+        'end_date': _isoDate(end),
+        'daily': [
+          'weather_code',
+          'temperature_2m_max',
+          'temperature_2m_min',
+          'precipitation_sum',
+        ].join(','),
+        'timezone': 'Asia/Manila',
+      },
+    );
+
+    final response = await http.get(uri);
+    if (response.statusCode != 200) {
+      throw StateError(
+        'Open-Meteo range failed (${response.statusCode}): ${response.body}',
+      );
+    }
+
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final daily = json['daily'] as Map<String, dynamic>?;
+    if (daily == null) {
+      throw StateError('Open-Meteo range missing daily block.');
+    }
+
+    final times = (daily['time'] as List).cast<String>();
+    final codes = daily['weather_code'] as List? ?? const [];
+    final maxes = daily['temperature_2m_max'] as List? ?? const [];
+    final mins = daily['temperature_2m_min'] as List? ?? const [];
+    final rains = daily['precipitation_sum'] as List? ?? const [];
+
+    final days = <DailyForecast>[];
+    for (var i = 0; i < times.length; i++) {
+      final rain = _numAt(rains, i);
+      final tmax = _numAt(maxes, i);
+      final tmin = _numAt(mins, i);
+      if (rain == null && tmax == null && tmin == null) continue;
+      final code = _numAt(codes, i)?.toInt() ?? 0;
+      days.add(
+        DailyForecast(
+          date: DateTime.parse(times[i]),
+          weatherCode: code,
+          conditionLabel: weatherCodeLabel(code),
+          tempMaxC: tmax ?? 0,
+          tempMinC: tmin ?? 0,
+          rainfallMm: rain ?? 0,
+          rainProbability: 0,
+        ),
+      );
+    }
+    return days;
+  }
+
+  static String _isoDate(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$y-$m-$day';
+  }
+
+  static double? _numAt(List<dynamic> list, int i) {
+    if (i >= list.length || list[i] == null) return null;
+    return (list[i] as num).toDouble();
   }
 }
 

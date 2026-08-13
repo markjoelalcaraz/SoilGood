@@ -11,7 +11,7 @@ SoilGood continuously monitors key soil parameters via IoT sensors and combines 
 
 ## Hardware (IoT)
 - **ESP32** microcontroller
-- Sensors: soil moisture, pH, temperature, electrical conductivity (EC), NPK
+- Sensors: 8-in-1 — soil moisture, pH, temperature, EC, salinity, NPK
 - **Persist interval:** ~every **15 minutes** (live UI can refresh more often in memory; history writes at this pace)
 
 ## Software Stack
@@ -28,7 +28,7 @@ Farmers, farm owners, and agricultural practitioners
 **SDG 2 – Zero Hunger**, Target 2.4 — sustainable food production and resilient agricultural practices.
 
 ## Project Objectives
-1. Build an IoT soil monitoring device (ESP32 + moisture, pH, temperature, EC, NPK).
+1. Build an IoT soil monitoring device (ESP32 + 8-in-1: moisture, pH, temperature, EC, salinity, NPK).
 2. Develop a real-time monitoring module (soil readings, weather, historical records).
 3. Integrate a weather API (current conditions + forecast).
 4. Develop an AI-assisted recommendation module (soil assessment, irrigation advice, management actions, crop recommendations).

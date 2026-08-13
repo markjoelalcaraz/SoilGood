@@ -1,0 +1,489 @@
+# Graph Report - Elect4  (2026-08-13)
+
+## Corpus Check
+- 108 files · ~48,607 words
+- Verdict: corpus is large enough that graph structure adds value.
+
+## Summary
+- 1361 nodes · 1721 edges · 95 communities (89 shown, 6 thin omitted)
+- Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
+- Token cost: 0 input · 0 output
+
+## Graph Freshness
+- Built from commit: `624af72b`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
+
+## Community Hubs (Navigation)
+- crops_page.dart
+- login_page.dart
+- home_page.dart
+- profile_onboarding_page.dart
+- notifications_page.dart
+- daily_soil_bucket.dart
+- soil_reading.dart
+- farm_notification.dart
+- location_onboarding_page.dart
+- device_onboarding_page.dart
+- crop_catalog.dart
+- app_shell.dart
+- analytics_page.dart
+- .application
+- ui_primitives.dart
+- day_readings_page.dart
+- auth_scaffold.dart
+- app_env.dart
+- manifest.json
+- MainActivity.kt
+- @example
+- SoilGood — Data Model
+- planting.dart
+- Page: Signup & Onboarding
+- crop_match.dart
+- Page: Home Dashboard
+- SoilGood — Backend
+- SoilGood — Project Overview
+- Checklist
+- Page: \<Page Name\>
+- SoilGood — Architecture
+- SoilGood — Features to Implement
+- SoilGood — UI Theme
+- crop_plan_page.dart
+- app_colors.dart
+- package:google_fonts/google_fonts.dart
+- auth_primary_button.dart
+- period_assessment.dart
+- crop_timeline.dart
+- SoilGood
+- StatelessWidget
+- manila_time.dart
+- soilgood_heartbeat/README.md
+- LaunchImage.imageset/README.md
+- analytics_period.dart
+- SoilGood — AI insights config
+- CustomPainter
+- auth_text_field.dart
+- auth_gate.dart
+- ai_json_parse.dart
+- analytics_filters.dart
+- String?
+- Page: Crops
+- package:flutter/material.dart
+- index.ts
+- profile_page.dart
+- ../../../core/ai/saved_assessment.dart
+- analytics_stats.dart
+- weather_models.dart
+- crops_care_ai_client.dart
+- notification_controller.dart
+- groq_period_ai_client.dart
+- crops_repository.dart
+- List
+- Page: Notifications
+- AuthController
+- main.dart
+- period_ai_regen.dart
+- insights_config.dart
+- signup_page.dart
+- farm_location_repository.dart
+- metric_chart_style.dart
+- Page: Analytics
+- soil_history_repository.dart
+- soil_readings_repository.dart
+- supabase_bootstrap.dart
+- notification_evaluator.dart
+- onboarding_repository.dart
+- notifications_repository.dart
+- period_weather.dart
+- core/supabase/supabase_bootstrap.dart
+- refresh_timeout.dart
+- groq_chat_client.dart
+- period_weather_repository.dart
+- period_ai_repository.dart
+- ../../core/theme/app_colors.dart
+- SignupPage
+- CropsPage
+- HomePage
+
+## God Nodes (most connected - your core abstractions)
+1. `SoilGood — Backend` - 12 edges
+2. `SoilGood — Data Model` - 12 edges
+3. `Tables & fields` - 12 edges
+4. `Page: Signup & Onboarding` - 12 edges
+5. `Page: Analytics` - 11 edges
+6. `Page: Crops` - 11 edges
+7. `Page: Home Dashboard` - 11 edges
+8. `SoilGood — Features to Implement` - 10 edges
+9. `SoilGood — Project Overview` - 10 edges
+10. `Page: \<Page Name\>` - 10 edges
+
+## Surprising Connections (you probably didn't know these)
+- `build` --navigates--> `NotificationsPage`  [EXTRACTED]
+  lib/features/shell/app_shell.dart → lib/features/notifications/presentation/notifications_page.dart
+- `_openDay` --navigates--> `DayReadingsPage`  [EXTRACTED]
+  lib/features/analytics/presentation/analytics_page.dart → lib/features/analytics/presentation/day_readings_page.dart
+- `_openSignup` --navigates--> `SignupPage`  [EXTRACTED]
+  lib/features/auth/presentation/login_page.dart → lib/features/auth/presentation/signup_page.dart
+- `NotificationScope` --references--> `NotificationController`  [EXTRACTED]
+  lib/features/notifications/logic/notification_scope.dart → lib/features/notifications/logic/notification_controller.dart
+
+## Import Cycles
+- None detected.
+
+## Communities (95 total, 6 thin omitted)
+
+### Community 0 - "crops_page.dart"
+Cohesion: 0.05
+Nodes (42): ../../../core/ai/saved_assessment_repository.dart, crop_plan_page.dart, ../data/crops_repository.dart, accent, _actionError, _aiError, _aiLoading, _aiRepo (+34 more)
+
+### Community 1 - "login_page.dart"
+Cohesion: 0.11
+Nodes (18): _authController, build, createState, dispose, _emailController, _formKey, initState, _obscurePassword (+10 more)
+
+### Community 2 - "home_page.dart"
+Cohesion: 0.04
+Nodes (47): ../data/soil_readings_repository.dart, active, _aiError, _aiLoading, _aiRepo, _assessment, build, _cached (+39 more)
+
+### Community 3 - "profile_onboarding_page.dart"
+Cohesion: 0.11
+Nodes (18): _barangay, build, _city, _continue, createState, dispose, _error, _firstName (+10 more)
+
+### Community 4 - "notifications_page.dart"
+Cohesion: 0.09
+Nodes (22): dart:async, ../data/notifications_repository.dart, _actionError, _AlertCard, build, _cached, createState, dispose (+14 more)
+
+### Community 5 - "daily_soil_bucket.dart"
+Cohesion: 0.05
+Nodes (37): avgEc, avgMoisture, avgNitrogen, avgOf, avgPh, avgPhosphorus, avgPotassium, avgSalinity (+29 more)
+
+### Community 6 - "soil_reading.dart"
+Cohesion: 0.12
+Nodes (15): double?, ec, fromJson, id, moisturePercent, nitrogen, ph, phosphorus (+7 more)
+
+### Community 7 - "farm_notification.dart"
+Cohesion: 0.07
+Nodes (28): bool get, info,
+  warning,, body, copyWith, createdAt, dedupeKey, farmerLabel, farmId (+20 more)
+
+### Community 8 - "location_onboarding_page.dart"
+Cohesion: 0.11
+Nodes (17): device_onboarding_page.dart, LatLng, build, _confirm, createState, _detectGps, _error, _gpsNote (+9 more)
+
+### Community 9 - "device_onboarding_page.dart"
+Cohesion: 0.13
+Nodes (14): ../../auth/presentation/widgets/auth_error_banner.dart, ../../auth/presentation/widgets/auth_primary_button.dart, ../../auth/presentation/widgets/auth_text_field.dart, ../data/onboarding_repository.dart, build, _claim, createState, _deviceUid (+6 more)
+
+### Community 10 - "crop_catalog.dart"
+Cohesion: 0.07
+Nodes (27): int?, days, daysToMaturity, ecMax, ecMin, fromJson, growingSeason, id (+19 more)
+
+### Community 11 - "app_shell.dart"
+Cohesion: 0.08
+Nodes (24): ../analytics/presentation/analytics_page.dart, ../crops/presentation/crops_page.dart, ../home/presentation/home_page.dart, AppShell, _AppShellState, createState, dispose, _index (+16 more)
+
+### Community 12 - "analytics_page.dart"
+Cohesion: 0.04
+Nodes (48): analytics_filters.dart, ../data/period_ai_repository.dart, ../data/period_weather_repository.dart, day_readings_page.dart, _aiError, _aiLoading, _aiRepo, _assessment (+40 more)
+
+### Community 13 - ".application"
+Cohesion: 0.15
+Nodes (10): Any, Bool, Flutter, FlutterAppDelegate, AppDelegate, RunnerTests, UIApplication, UIKit (+2 more)
+
+### Community 14 - "ui_primitives.dart"
+Cohesion: 0.10
+Nodes (19): build, child, color, first, gap, icon, isNarrowPhone, label (+11 more)
+
+### Community 15 - "day_readings_page.dart"
+Cohesion: 0.12
+Nodes (16): ../data/soil_history_repository.dart, _openDay, build, createState, DayReadingsPage, _DayReadingsPageState, _done, _error (+8 more)
+
+### Community 16 - "auth_scaffold.dart"
+Cohesion: 0.18
+Nodes (10): Color, AuthScaffold, build, color, footer, form, _OrganicGlow, subtitle (+2 more)
+
+### Community 17 - "app_env.dart"
+Cohesion: 0.18
+Nodes (10): _anonKey, AppEnv, load, _require, supabaseAnonKey, supabaseUrl, _urlKey, package:flutter_dotenv/flutter_dotenv.dart (+2 more)
+
+### Community 18 - "manifest.json"
+Cohesion: 0.18
+Nodes (10): background_color, description, display, icons, name, orientation, prefer_related_applications, short_name (+2 more)
+
+### Community 25 - "SoilGood — Data Model"
+Cohesion: 0.08
+Nodes (24): `ai_assessments`, `ai_recommendations`, `crops` (reference), Device claim flow, `devices`, Entity relationship, ESP32 → cloud → app, `farm_actions` (+16 more)
+
+### Community 26 - "planting.dart"
+Cohesion: 0.15
+Nodes (12): DateTime, CropCatalogEntry, crop, cropId, _dateOnly, expectedHarvestAt, farmId, fromJson (+4 more)
+
+### Community 27 - "Page: Signup & Onboarding"
+Cohesion: 0.08
+Nodes (24): Data & sources, Farm location (GPS + draggable pin), Flow overview (split into steps), Functions, Implemented, Optimistic UI, Page logic flowchart, Page: Signup & Onboarding (+16 more)
+
+### Community 28 - "crop_match.dart"
+Cohesion: 0.05
+Nodes (37): _airTempC, bad, checks, considered, crop, CropMatch, CropRainFit, days (+29 more)
+
+### Community 29 - "Page: Home Dashboard"
+Cohesion: 0.18
+Nodes (11): Data & sources, Functions, In / out (locked), Optimistic UI, Page: Home Dashboard, Page logic flowchart, Purpose / goal, Related (+3 more)
+
+### Community 30 - "SoilGood — Backend"
+Cohesion: 0.17
+Nodes (12): Data requirements, Decisions (locked), Development without hardware, ESP32 write path (locked), Farm notifications (local alerts), Flutter env (client), Free / cost policy, Groq (all generated AI insights) (+4 more)
+
+### Community 31 - "SoilGood — Project Overview"
+Cohesion: 0.20
+Nodes (10): App Name, Hardware (IoT), Problem, Project Objectives, Related docs, SDG Alignment, Software Stack, SoilGood — Project Overview (+2 more)
+
+### Community 32 - "Checklist"
+Cohesion: 0.20
+Nodes (10): Authentication, Checklist, Device (ESP32), Out of scope for early development, Principles (fit for now), Row Level Security (RLS), Secrets, SoilGood — Security (+2 more)
+
+### Community 33 - "Page: \<Page Name\>"
+Cohesion: 0.20
+Nodes (10): Data & sources, Functions, Optimistic UI, Page logic flowchart, Page: \<Page Name\>, Purpose / goal, Related, Status (+2 more)
+
+### Community 35 - "SoilGood — Architecture"
+Cohesion: 0.22
+Nodes (9): App shell (persistent chrome), Design source of truth, Documentation required per page, Folder conventions, Goals, Navigation transitions, Page UX conventions, Separation of concerns (+1 more)
+
+### Community 36 - "SoilGood — Features to Implement"
+Cohesion: 0.20
+Nodes (10): 1. Real-time Soil Monitoring, 2. Weather Information, 3. Historical Monitoring Records, 4. AI-Assisted Recommendations, 5. Analytics (History + Trends + Period Averages), 6. Notifications (engine first, inbox later), Data Requirement (critical), Primary User Flows (+2 more)
+
+### Community 37 - "SoilGood — UI Theme"
+Cohesion: 0.29
+Nodes (7): Brand direction, Colors, Implementation notes (when coding), Shell & layout, SoilGood — UI Theme, Type details, Typography
+
+### Community 38 - "crop_plan_page.dart"
+Cohesion: 0.05
+Nodes (38): AiRecommendation, description, farmId, fromJson, generatedAt, id, kind, modelName (+30 more)
+
+### Community 39 - "app_colors.dart"
+Cohesion: 0.07
+Nodes (27): AppColors, background, error, errorContainer, outline, primary, primaryContainer, primarySoft (+19 more)
+
+### Community 40 - "package:google_fonts/google_fonts.dart"
+Cohesion: 0.40
+Nodes (4): app_colors.dart, AppTheme, _border, package:google_fonts/google_fonts.dart
+
+### Community 41 - "auth_primary_button.dart"
+Cohesion: 0.29
+Nodes (6): AuthPrimaryButton, build, isLoading, label, onPressed, VoidCallback?
+
+### Community 42 - "period_assessment.dart"
+Cohesion: 0.09
+Nodes (21): description, farmId, fromJson, generatedAt, id, modelName, overview, _parseDate (+13 more)
+
+### Community 43 - "crop_timeline.dart"
+Cohesion: 0.10
+Nodes (20): ../data/crop_catalog.dart, CropPhase, crop, CropTimeline, current, currentIndex, currentPhaseStart, cursor (+12 more)
+
+### Community 44 - "SoilGood"
+Cohesion: 0.33
+Nodes (6): Context, Documentation (read these first), Pages, Run, SoilGood, Stack
+
+### Community 45 - "StatelessWidget"
+Cohesion: 0.09
+Nodes (23): _AdviceCard, _AnalyticsFirstLoadSkeleton, _CaptionStat, _PeriodAiBlock, _PeriodWeatherCard, _SensorAvgGrid, _SensorAvgTile, _SourceErrorCard (+15 more)
+
+### Community 46 - "manila_time.dart"
+Cohesion: 0.09
+Nodes (21): d, day, kManilaOffset, m, manila, manilaCalendarDate, manilaDayEndUtc, manilaIsoDate (+13 more)
+
+### Community 49 - "analytics_period.dart"
+Cohesion: 0.11
+Nodes (17): AnalyticsPeriod, AnalyticsPeriodKind, customMonth, customWeek, dayCount, end, formatManilaRange, kind (+9 more)
+
+### Community 50 - "SoilGood — AI insights config"
+Cohesion: 0.25
+Nodes (8): Deploy (one-time), Does one JSON file save tokens?, Next (locked), Production API, Prompt versions, SoilGood — AI insights config, Storage, What actually saves Groq tokens
+
+### Community 51 - "CustomPainter"
+Cohesion: 0.67
+Nodes (3): CustomPainter, _OverlayChartPainter, _TrendChartPainter
+
+### Community 52 - "auth_text_field.dart"
+Cohesion: 0.15
+Nodes (12): IconData?, AuthTextField, build, controller, hint, icon, keyboardType, label (+4 more)
+
+### Community 53 - "auth_gate.dart"
+Cohesion: 0.13
+Nodes (15): AuthState, Future, AuthGate, build, createState, _future, initState, _OnboardingRouter (+7 more)
+
+### Community 54 - "ai_json_parse.dart"
+Cohesion: 0.15
+Nodes (11): groq_chat_client.dart, _allowedPriority, overview, parseAiInsightJson, recRaw, recs, fetchLatest, save (+3 more)
+
+### Community 55 - "analytics_filters.dart"
+Cohesion: 0.05
+Nodes (48): AnalyticsPeriod get, AnalyticsFilterBar, build, _calMonth, createState, current, _Dow, _draft (+40 more)
+
+### Community 56 - "String?"
+Cohesion: 0.20
+Nodes (9): ../data/auth_repository.dart, errorMessage, isLoading, _repository, _run, signIn, signUp, package:flutter/foundation.dart (+1 more)
+
+### Community 57 - "Page: Crops"
+Cohesion: 0.18
+Nodes (11): Data & sources, Functions, In / out (locked), Optimistic UI, Page: Crops, Page logic flowchart, Purpose / goal, Related (+3 more)
+
+### Community 58 - "package:flutter/material.dart"
+Cohesion: 0.14
+Nodes (11): AppPageRoutes, AppContentWidth, build, child, kAppContentMaxWidth, kAuthContentMaxWidth, maxWidth, package:flutter/material.dart (+3 more)
+
+### Community 59 - "index.ts"
+Cohesion: 0.31
+Nodes (9): cors, handlePost(), hasLiveInput(), insights, jobs, jsonResponse(), promptAt(), requireUser() (+1 more)
+
+### Community 60 - "profile_page.dart"
+Cohesion: 0.11
+Nodes (18): ../../auth/data/auth_repository.dart, build, createState, _displayName, initState, _loadDone, _loadError, _loadProfile (+10 more)
+
+### Community 61 - "../../../core/ai/saved_assessment.dart"
+Cohesion: 0.20
+Nodes (9): ../../../core/ai/saved_assessment.dart, crop_timeline.dart, false, shouldRegenCropsCareAi, until, false, shouldRegenHomeAi, until (+1 more)
+
+### Community 62 - "analytics_stats.dart"
+Cohesion: 0.12
+Nodes (16): average, avgs, b, bucketsToPromptJson, dayCount, formatMetric, inferredDryDayCount, max (+8 more)
+
+### Community 63 - "weather_models.dart"
+Cohesion: 0.12
+Nodes (16): conditionLabel, daily, DailyForecast, date, fetchedAt, humidityPercent, latitude, longitude (+8 more)
+
+### Community 64 - "crops_care_ai_client.dart"
+Cohesion: 0.21
+Nodes (11): ../../../core/ai/ai_json_parse.dart, ../../../core/ai/groq_chat_client.dart, ../../../core/ai/insights_config.dart, ../data/planting.dart, ../data/soil_reading.dart, GroqChatClient, _chat, CropsCareAiClient (+3 more)
+
+### Community 65 - "notification_controller.dart"
+Cohesion: 0.08
+Nodes (23): ../../crops/data/crops_repository.dart, ../../crops/logic/crop_timeline.dart, ../../home/data/soil_readings_repository.dart, _closed, _cropsRepo, dispose, _evaluator, _farmRepo (+15 more)
+
+### Community 67 - "groq_period_ai_client.dart"
+Cohesion: 0.20
+Nodes (9): analytics_stats.dart, ../data/period_weather.dart, _allowedPriority, _allowedTypes, _chat, GroqPeriodAiClient, message, _parseMap (+1 more)
+
+### Community 68 - "crops_repository.dart"
+Cohesion: 0.20
+Nodes (9): ../../analytics/logic/manila_time.dart, crop_catalog.dart, CropsRepository, endPlanting, fetchActivePlanting, fetchCatalog, selectCrop, _ymd (+1 more)
+
+### Community 69 - "List"
+Cohesion: 0.25
+Nodes (7): app_content_width.dart, EdgeInsetsGeometry, AppRefreshScroll, build, children, padding, List
+
+### Community 70 - "Page: Notifications"
+Cohesion: 0.18
+Nodes (10): Data & sources, Functions, Optimistic UI, Page logic flowchart, Page: Notifications, Purpose / goal, Related, Status (+2 more)
+
+### Community 71 - "AuthController"
+Cohesion: 0.25
+Nodes (7): ChangeNotifier, InheritedNotifier, AuthController, NotificationController, maybeOf, NotificationScope, notification_controller.dart
+
+### Community 72 - "main.dart"
+Cohesion: 0.22
+Nodes (8): core/config/app_env.dart, core/theme/app_theme.dart, features/auth/presentation/auth_gate.dart, bootstrapSupabase, build, load, main, SoilGoodApp
+
+### Community 73 - "period_ai_regen.dart"
+Cohesion: 0.17
+Nodes (11): analytics_period.dart, ../data/period_assessment.dart, end, false, generatedDay, kPeriodAiPromptVersion, last, shouldRegenPeriodAi (+3 more)
+
+### Community 74 - "insights_config.dart"
+Cohesion: 0.07
+Nodes (27): dart:convert, _band, _bands, _cached, classifiedFacts, cropsCacheHours, _highOnly, homeCacheHours (+19 more)
+
+### Community 75 - "signup_page.dart"
+Cohesion: 0.11
+Nodes (18): FormState, _authController, build, _confirmController, createState, dispose, _emailController, _formKey (+10 more)
+
+### Community 76 - "farm_location_repository.dart"
+Cohesion: 0.25
+Nodes (7): FarmCoordinates, farmId, FarmLocationRepository, getPrimaryFarmCoordinates, getPrimaryFarmId, latitude, longitude
+
+### Community 77 - "metric_chart_style.dart"
+Cohesion: 0.25
+Nodes (7): ../data/daily_soil_bucket.dart, hi, lo, metricChartColor, metricOverlayBand, metricOverlayUnit, v
+
+### Community 78 - "Page: Analytics"
+Cohesion: 0.18
+Nodes (11): Data & sources, Functions, In / out (locked), Optimistic UI, Page: Analytics, Page logic flowchart, Purpose / goal, Related (+3 more)
+
+### Community 79 - "soil_history_repository.dart"
+Cohesion: 0.22
+Nodes (8): daily_soil_bucket.dart, ../../home/data/soil_reading.dart, fetchActiveCropName, fetchDaily, fetchForDay, fetchPrimaryFarmId, _ownedDeviceIds, SoilHistoryRepository
+
+### Community 80 - "soil_readings_repository.dart"
+Cohesion: 0.33
+Nodes (5): fetchLatest, _ownedDeviceIds, SoilReadingsRepository, watchLatest, soil_reading.dart
+
+### Community 81 - "supabase_bootstrap.dart"
+Cohesion: 0.29
+Nodes (6): ../config/app_env.dart, bootstrapSupabase, initialize, supabase, package:supabase_flutter/supabase_flutter.dart, SupabaseClient get
+
+### Community 82 - "notification_evaluator.dart"
+Cohesion: 0.14
+Nodes (13): ../data/farm_notification.dart, Duration, _addBandIssue, evaluate, _fmt, _irrigation, _joinList, _manilaYmd (+5 more)
+
+### Community 83 - "onboarding_repository.dart"
+Cohesion: 0.20
+Nodes (9): dart:math, claimDevice, loadProfile, loadStep, _newIngestToken, OnboardingRepository, OnboardingStep, saveFarmLocation (+1 more)
+
+### Community 84 - "notifications_repository.dart"
+Cohesion: 0.18
+Nodes (10): farm_notification.dart, fetchRecent, insertIfNew, insertNewDrafts, markAllRead, markRead, markTypesRead, NotificationsRepository (+2 more)
+
+### Community 85 - "period_weather.dart"
+Cohesion: 0.18
+Nodes (10): double get, int get, _avg, avgTempMaxC, avgTempMinC, days, PeriodWeather, rainyDayCount (+2 more)
+
+### Community 86 - "core/supabase/supabase_bootstrap.dart"
+Cohesion: 0.33
+Nodes (5): core/supabase/supabase_bootstrap.dart, AuthRepository, signIn, signOut, signUp
+
+### Community 87 - "refresh_timeout.dart"
+Cohesion: 0.22
+Nodes (8): Exception, GroqChatException, GroqPeriodAiException, kRefreshTimeout, RefreshTimeoutException, timeout, toString, T
+
+### Community 88 - "groq_chat_client.dart"
+Cohesion: 0.25
+Nodes (7): _asMap, completeJson, kGroqModel, kInsightsFunction, message, _messageFrom, toString
+
+### Community 89 - "period_weather_repository.dart"
+Cohesion: 0.22
+Nodes (8): fetchRange, _location, PeriodWeatherRepository, _weather, OpenMeteoWeatherService, period_weather.dart, ../../weather/data/farm_location_repository.dart, ../../weather/data/open_meteo_weather_service.dart
+
+### Community 90 - "period_ai_repository.dart"
+Cohesion: 0.33
+Nodes (5): fetchLatest, PeriodAiRepository, save, ../logic/manila_time.dart, period_assessment.dart
+
+### Community 91 - "../../core/theme/app_colors.dart"
+Cohesion: 0.40
+Nodes (4): ../../core/theme/app_colors.dart, AuthErrorBanner, build, message
+
+### Community 92 - "SignupPage"
+Cohesion: 0.67
+Nodes (3): _openSignup, SignupPage, _SignupPageState
+
+## Knowledge Gaps
+- **949 isolated node(s):** `XCTest`, `_allowedPriority`, `overview`, `recRaw`, `recs` (+944 more)
+  These have ≤1 connection - possible missing edges or undocumented components.
+- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+
+## Suggested Questions
+_Questions this graph is uniquely positioned to answer:_
+
+- **Why does `SoilMetric` connect `daily_soil_bucket.dart` to `analytics_page.dart`, `analytics_filters.dart`?**
+  _High betweenness centrality (0.018) - this node is a cross-community bridge._
+- **Why does `GroqChatClient` connect `crops_care_ai_client.dart` to `groq_chat_client.dart`, `groq_period_ai_client.dart`?**
+  _High betweenness centrality (0.007) - this node is a cross-community bridge._
+- **Why does `SoilReading` connect `soil_reading.dart` to `crops_page.dart`, `home_page.dart`, `day_readings_page.dart`?**
+  _High betweenness centrality (0.006) - this node is a cross-community bridge._
+- **What connects `XCTest`, `_allowedPriority`, `overview` to the rest of the system?**
+  _949 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `crops_page.dart` be split into smaller, more focused modules?**
+  _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
+- **Should `login_page.dart` be split into smaller, more focused modules?**
+  _Cohesion score 0.10526315789473684 - nodes in this community are weakly interconnected._
+- **Should `home_page.dart` be split into smaller, more focused modules?**
+  _Cohesion score 0.041666666666666664 - nodes in this community are weakly interconnected._

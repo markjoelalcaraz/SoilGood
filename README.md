@@ -28,6 +28,6 @@ flutter run
 ## Stack
 
 - Flutter 3.38+ / Dart 3.10+
-- Supabase (Free) + prefer free APIs
+- Supabase (Free) + Edge Function `soilgood-insights` (Groq) + prefer free APIs
 - Platforms: Android, iOS, Web
 - Package name: `soil_sense` (technical); display name: **SoilGood**

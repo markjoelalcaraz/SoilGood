@@ -1,0 +1,44 @@
+---
+description: Data screens must have pull-to-refresh — refetch saved data, skeleton only on first load, AI regen only when inputs change
+alwaysApply: true
+---
+
+# Pull-to-refresh on data UI
+
+Child of `page-architecture.mdc` (same folder). Any screen that **shows system data** (Supabase, sensors, weather, history, crop plans, saved profile, **saved AI**) must support pull-to-refresh. Realtime is **not** a substitute.
+
+## When required
+- Shell tabs and pushed pages that load/display records — including empty/error (pull = retry).
+- Add `RefreshIndicator` in the **same change** that wires real fetch/stream.
+
+**Not required:** login/signup, static copy, onboarding **input** with no loaded records.
+
+## First load vs pull
+- **First open:** skeleton until the first fetch/stream returns.
+- **Pull:** keep last-known on screen (including last AI). Never blank to skeleton on pull.
+
+## Where the indicator lives
+`RefreshIndicator` wraps the **page-level vertical** scroll only. Inner horizontal lists (forecast, chips) do **not** get their own refresh — sideways scroll only. Pulling the page refetches every displayed source.
+
+## What `onRefresh` refetches
+Every **displayed** source on that page (e.g. Home = soil + weather + **saved** AI). Use `AlwaysScrollableScrollPhysics`. Indicator: `AppColors.primary`.
+
+**Partial failure:** apply sources that succeeded; show a visible error on the ones that failed. Do not roll back the whole page. Do not treat the pull as full success if any source failed.
+
+**Timeout:** every refresh has a time limit (about 10–15s). On timeout: stop the spinner, keep dated last-known data, show a visible error. Never hang forever on weak signal.
+
+**AI — two different refreshes:**
+- **Always (cheap):** load latest `ai_assessments` / `ai_recommendations` from Supabase. Same as soil fetch.
+- **Model regen (expensive):** only if there is no assessment, **or** latest soil/weather ids differ from the assessment’s `soil_reading_id` / `weather_snapshot_id`, **or** past `valid_until`. Same reading + same weather → **do not** call the model; show the saved assessment.
+
+```dart
+RefreshIndicator(
+  color: AppColors.primary,
+  onRefresh: _reloadAll, // refetch displayed sources; regen AI only if inputs changed
+  child: ListView(
+    physics: const AlwaysScrollableScrollPhysics(),
+    padding: const EdgeInsets.all(16),
+    children: [...],
+  ),
+)
+```

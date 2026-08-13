@@ -11,7 +11,7 @@ This is **SoilGood**, a Flutter IoT + AI mobile app for Philippine farmers.
 Help farmers make informed irrigation, nutrient, and crop decisions using real-time soil data, weather, AI recommendations, and historical analytics.
 
 ## Hardware
-ESP32 + soil moisture, pH, temperature, EC, and NPK sensors. Persist ~every **15 minutes**.
+ESP32 + 8-in-1 soil sensors: moisture, pH, temperature, EC, salinity, NPK. Persist ~every **15 minutes**.
 
 ## Stack (locked)
 - Flutter app + **Supabase** (Free) + prefer **free** APIs

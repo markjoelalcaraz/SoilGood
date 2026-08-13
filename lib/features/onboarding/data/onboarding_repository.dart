@@ -4,6 +4,8 @@
 /// onboarding pages call it to save rows to Supabase. No UI here.
 library;
 
+import 'dart:math';
+
 import '../../../core/supabase/supabase_bootstrap.dart';
 
 /// Which onboarding screen the signed-in user should see next.
@@ -132,8 +134,15 @@ class OnboardingRepository {
     return row['id'] as String;
   }
 
-  /// Links an ESP32 `device_uid` to the user's farm.
-  Future<void> claimDevice({
+  /// Random hex token the ESP32 sends with the anon key (not service_role).
+  String _newIngestToken() {
+    final r = Random.secure();
+    final bytes = List<int>.generate(16, (_) => r.nextInt(256));
+    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  }
+
+  /// Links an ESP32 `device_uid` to the user's farm. Returns `ingest_token`.
+  Future<String> claimDevice({
     required String deviceUid,
     String name = 'SoilGood Sensor',
   }) async {
@@ -157,7 +166,7 @@ class OnboardingRepository {
 
     final existing = await supabase
         .from('devices')
-        .select('id, farm_id')
+        .select('id, farm_id, ingest_token')
         .eq('device_uid', uidTrim)
         .maybeSingle();
 
@@ -165,18 +174,38 @@ class OnboardingRepository {
       if (existing['farm_id'] != farmId) {
         throw StateError('This device is already linked to another farm.');
       }
-      await supabase
+      final existingToken = (existing['ingest_token'] as String?)?.trim() ?? '';
+      if (existingToken.isNotEmpty) {
+        await supabase
+            .from('devices')
+            .update({'status': 'active', 'name': name})
+            .eq('id', existing['id']);
+        return existingToken;
+      }
+      final updated = await supabase
           .from('devices')
-          .update({'status': 'active', 'name': name})
-          .eq('id', existing['id']);
-      return;
+          .update({
+            'status': 'active',
+            'name': name,
+            'ingest_token': _newIngestToken(),
+          })
+          .eq('id', existing['id'])
+          .select('ingest_token')
+          .single();
+      return updated['ingest_token'] as String;
     }
 
-    await supabase.from('devices').insert({
-      'farm_id': farmId,
-      'device_uid': uidTrim,
-      'name': name,
-      'status': 'active',
-    });
+    final inserted = await supabase
+        .from('devices')
+        .insert({
+          'farm_id': farmId,
+          'device_uid': uidTrim,
+          'name': name,
+          'status': 'active',
+          'ingest_token': _newIngestToken(),
+        })
+        .select('ingest_token')
+        .single();
+    return inserted['ingest_token'] as String;
   }
 }

@@ -1,14 +1,23 @@
 ---
-description: Page UX architecture — shell, cache, skeleton, optimistic, realtime, free APIs, page docs
+description: Page UX architecture — shell, cache, skeleton, optimistic, realtime, free APIs, page docs; parent of responsive-ui, pull-to-refresh, scrollbar
 alwaysApply: true
 ---
 
 # Page & App Architecture
 
+Parent rule for how SoilGood pages are built. Lives in `.cursor/rules/page-architecture/` with its children. **Do not merge** child how-to into this file — one concern per rule so the agent can follow each cleanly.
+
+| Child | Concern |
+|---|---|
+| `responsive-ui.mdc` | Phone layout — no overflow |
+| `pull-to-refresh.mdc` | Data screens — refetch / saved AI |
+| `scrollbar.mdc` | Thin overlay scrollbars — not the thick OS bar |
+
 ## Before building a page or feature
 1. Read relevant docs under `docs/context/` and any existing `docs/pages/<page>.md`.
 2. Create or update `docs/pages/<page-name>.md` from `docs/pages/_TEMPLATE.md` (purpose, functions, **page-logic Mermaid flowchart**).
-3. Follow [UI_THEME.md](../../docs/context/UI_THEME.md) — do not invent a conflicting look.
+3. Follow [UI_THEME.md](../../../docs/context/UI_THEME.md) — do not invent a conflicting look.
+4. Follow the child rules above (phone-first layout, pull-to-refresh on data screens, minimalist scrollbars).
 
 ## App shell
 - Persistent nav/chrome; only the **content area** loads or swaps.
@@ -20,9 +29,10 @@ alwaysApply: true
 
 ## Page UX
 - Cache last-known data when possible.
-- Skeleton loaders show structure immediately.
+- Skeleton loaders show structure immediately (**first open only** — pull must not blank; see pull-to-refresh child).
 - Optimistic UI for actions that should normally succeed; on failure rollback + visible error.
 - Prefer realtime listeners/streams (e.g. Supabase Realtime). “Subscription” means code listener, not paid billing.
+- Data screens: pull-to-refresh is required (child rule). Realtime is not a substitute.
 
 ## Cost
 - Prefer **free** APIs and free tiers; document limits when choosing a service.

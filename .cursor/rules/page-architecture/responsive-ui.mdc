@@ -1,0 +1,54 @@
+---
+description: Phone-first Flutter UI — no overflow, flexible rows, SafeArea, scroll on short screens and keyboard
+alwaysApply: true
+---
+
+# Phone-first responsive UI
+
+Child of `page-architecture.mdc` (same folder). SoilGood is used on **phones** (small Android ~320–360px wide, notches, keyboard). Layout must not overflow, clip, or become untappable.
+
+Follow [UI_THEME.md](../../../docs/context/UI_THEME.md). Do not design desktop/tablet-first.
+
+## Hard rules
+- **Never** let a `Row`/`Column` overflow. Growing children use `Expanded` / `Flexible`. Text uses `maxLines` + `TextOverflow.ellipsis` or wrap.
+- **Never** hardcode a width/height that assumes one phone size (e.g. `width: 400`). Prefer parent constraints, `Expanded`, or `LayoutBuilder`.
+- Pages must survive **short screens** and the **keyboard**: `SafeArea` + `SingleChildScrollView` (or `ListView`) on forms and long content.
+- Account for the **persistent bottom nav** (app shell). Do not draw behind the system gesture / nav bar.
+- Tap targets ≥ **48px**. Farmers use phones in the field.
+- **Do not let content grow with the screen.** Cap the body at `kAppContentMaxWidth` (600) via `AppContentWidth` and center it. Leftover space is matte background. **AppBar + bottom nav stay full width** (app-like). Auth forms: `kAuthContentMaxWidth` (440). Never scale fonts/cards as a % of screen.
+
+## Patterns
+
+```dart
+// ❌ BAD — overflows on narrow phones
+Row(children: [Text(longLabel), Text(value)])
+
+// ✅ GOOD
+Row(children: [
+  Expanded(
+    child: Text(longLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
+  ),
+  Text(value),
+])
+```
+
+```dart
+// ❌ BAD — whole page in a non-scrolling Column
+Column(children: [/* entire screen */])
+
+// ✅ GOOD
+SafeArea(
+  child: ListView(
+    padding: const EdgeInsets.all(16),
+    children: [...],
+  ),
+)
+```
+
+- Horizontal strips (forecast, chips): `ListView(scrollDirection: Axis.horizontal)`, not a `Row` of many fixed-width children.
+- Sensor numbers that must stay one line: `FittedBox` (scale down) or `Flexible`.
+- Two-up cards: if `MediaQuery.sizeOf(context).width < 360`, stack vertically instead of squeezing.
+- Wide Chrome/tablet: content column stays ≤600px centered; nav/app bar full-bleed.
+
+## Check before done
+Yellow/black overflow stripes = not done. Mentally test **~320px width** + **keyboard open**, and a **wide** window (content must not stretch).

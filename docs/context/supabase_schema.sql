@@ -66,6 +66,7 @@ create table if not exists public.devices (
   id uuid primary key default gen_random_uuid(),
   farm_id uuid not null references public.farms (id) on delete cascade,
   device_uid text not null unique,
+  ingest_token text,
   name text not null default 'SoilGood Sensor',
   status text not null default 'unclaimed'
     check (status in ('unclaimed', 'active', 'offline', 'error')),
@@ -86,6 +87,7 @@ create table if not exists public.soil_readings (
   ph double precision,
   soil_temperature_c double precision,
   ec double precision,
+  salinity double precision,
   nitrogen double precision,
   phosphorus double precision,
   potassium double precision,
@@ -93,6 +95,10 @@ create table if not exists public.soil_readings (
     check (validation_status in ('ok', 'warning', 'error')),
   validation_message text
 );
+
+-- Existing projects: add salinity if the table was created before 8-in-1.
+alter table public.soil_readings
+  add column if not exists salinity double precision;
 
 create index if not exists soil_readings_device_id_recorded_at_idx
   on public.soil_readings (device_id, recorded_at desc);
@@ -136,6 +142,8 @@ create table if not exists public.crops (
   phosphorus_max double precision,
   potassium_min double precision,
   potassium_max double precision,
+  salinity_min double precision,
+  salinity_max double precision,
   growing_season text,
   notes text
 );
@@ -413,4 +421,10 @@ grant select, insert, update, delete on table public.plantings to authenticated;
 grant select, insert on table public.ai_assessments to authenticated;
 grant select, insert on table public.ai_recommendations to authenticated;
 grant select, insert on table public.farm_actions to authenticated;
+
+-- ESP32 heartbeat / readings: run supabase_esp32_ingest.sql after this file
+-- (RPC ingest_soil_reading for anon key + ingest_token; never service_role on device).
+-- Analytics daily buckets + period_days: run supabase_analytics.sql.
+-- Crops phases + ai_assessments.kind (home/analytics/crops): run supabase_crops_home_ai.sql.
+-- Farm alert rows (inbox later): run supabase_notifications.sql.
 

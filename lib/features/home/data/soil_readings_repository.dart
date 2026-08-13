@@ -1,7 +1,7 @@
 /// Data repository that loads and watches the latest soil reading from Supabase.
 ///
-/// Powers the live Home content area. Prefer the realtime stream so new ESP32
-/// inserts appear without the farmer refreshing manually.
+/// Powers the live Home content area. Realtime stream shows new ESP32 inserts;
+/// pull-to-refresh still calls [fetchLatest] so the farmer can force a reload.
 library;
 
 import '../../../core/supabase/supabase_bootstrap.dart';

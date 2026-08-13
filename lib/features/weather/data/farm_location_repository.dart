@@ -1,7 +1,7 @@
 /// Data repository that reads the farmer's saved farm coordinates from Supabase.
 ///
-/// Weather (and anything else needing the pin) uses this instead of asking GPS
-/// again. Returns null when onboarding location was never finished.
+/// Weather uses lat/long; Crops and Home AI use [getPrimaryFarmId] even when
+/// the pin is missing. Returns null when onboarding location was never finished.
 library;
 
 import '../../../core/supabase/supabase_bootstrap.dart';
@@ -21,6 +21,20 @@ class FarmCoordinates {
 
 /// Reads the signed-in user's farm pin from Supabase.
 class FarmLocationRepository {
+  /// First farm id for the signed-in user, even when lat/long is missing.
+  Future<String?> getPrimaryFarmId() async {
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) return null;
+
+    final row = await supabase
+        .from('farms')
+        .select('id')
+        .eq('owner_id', uid)
+        .limit(1)
+        .maybeSingle();
+    return row?['id'] as String?;
+  }
+
   /// Returns the first farm with valid lat/long, or null if missing.
   Future<FarmCoordinates?> getPrimaryFarmCoordinates() async {
     final uid = supabase.auth.currentUser?.id;

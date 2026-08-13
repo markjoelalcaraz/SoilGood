@@ -1,0 +1,104 @@
+{
+  "prompt_version": "insights_v1",
+  "send_to_model": ["voice", "prompts.<page>", "bands", "irrigation", "output"],
+  "never_send": ["meta", "sensor_valid", "regen", "cache_hours"],
+  "meta": {
+    "app": "SoilGood",
+    "audience": "Philippine smallholder farmers",
+    "usage": "Flutter loads this file locally to classify bands (0 Groq tokens). The Edge Function attaches a page slice before calling Groq. Never send this whole file or docs/markdown to the model."
+  },
+  "voice": {
+    "style": "practical plain English",
+    "no_markdown": true,
+    "no_invented_numbers": true
+  },
+  "output": {
+    "overview_sentences": [2, 4],
+    "soil_health_score": [0, 100],
+    "priority": ["low", "medium", "high"],
+    "types": ["irrigation", "nutrient", "soil_management", "crop_suitability"]
+  },
+  "prompts": {
+    "home": {
+      "job": "One urgent action for TODAY from the latest soil row + short forecast. Water, wait, or check the sensor.",
+      "max_recommendations": 1,
+      "allowed_types": ["irrigation"],
+      "rules": [
+        "Use classified bands already in the user payload. Do not restate unused thresholds.",
+        "If rain_prob_today or rain_prob_tomorrow >= irrigation.skip_if_rain_prob_pct_gte and moisture is not dry, prefer wait.",
+        "If moisture band is dry and rain is below that skip threshold, recommend irrigate.",
+        "If moisture band is wet, do not irrigate.",
+        "If validation is error/warning, the action is check the sensor — not a farm schedule.",
+        "Never give a clock time. Never use history, monthly averages, or crop catalog."
+      ]
+    },
+    "analytics": {
+      "job": "What the field DID over the selected date window (period_start–period_end), using soil history and period weather (rain/temp), and what to plan next from trends.",
+      "max_recommendations": 4,
+      "allowed_types": ["irrigation", "nutrient", "soil_management", "crop_suitability"],
+      "rules": [
+        "Base advice only on provided daily averages. Null field = say missing; do not invent.",
+        "Irrigation type = dry-spell PATTERN over the window. Never 'water tomorrow 6:00 AM'.",
+        "Include at least one nutrient or soil_management action.",
+        "crop_suitability only if a crop name is given or history clearly suggests a fit.",
+        "Do not copy Home's same-day irrigate/wait order."
+      ]
+    },
+    "crops": {
+      "catalog": {
+        "job": "Match the latest 8-in-1 soil snapshot plus current forecast to the crops catalog locally. Do not call the model for catalog scores.",
+        "call_model": false,
+        "rules": [
+          "Score against public.crops min/max (including salinity) plus Open-Meteo season, rain, and air temp. Not this file.",
+          "Seasonal fit from history stays on Analytics, not this tab."
+        ]
+      },
+      "care": {
+        "job": "How to maintain this selected crop and soil in the current cultivation phase. Irrigation, fertilizer, and soil care — not a catalog score.",
+        "max_recommendations": 3,
+        "allowed_types": ["irrigation", "nutrient", "soil_management"],
+        "rules": [
+          "Use classified bands, crop name, and current phase already in the user payload.",
+          "Irrigation and nutrient advice must fit this crop and phase, not Home's same-day water/wait line.",
+          "Never give a clock time. Never invent soil numbers. Never score the crops catalog.",
+          "If validation is error/warning, say check the sensor before changing irrigation or fertilizer."
+        ]
+      }
+    }
+  },
+  "sensor_valid": {
+    "moisture_pct": [0, 100],
+    "ph": [0, 14],
+    "soil_temp_c": [-10, 60],
+    "ec_ds_m": [0, 20],
+    "salinity_ppt": [0, 50],
+    "n_mgkg": [0, 500],
+    "p_mgkg": [0, 300],
+    "k_mgkg": [0, 800]
+  },
+  "bands": {
+    "moisture_pct": { "dry_lt": 30, "wet_gt": 85 },
+    "ph": { "low_lt": 5.5, "high_gt": 7.5 },
+    "soil_temp_c": { "low_lt": 15, "high_gt": 35 },
+    "ec_ds_m": { "low_lt": 0.2, "high_gt": 2.0 },
+    "salinity_ppt": { "high_gt": 4 },
+    "n_mgkg": { "low_lt": 45 },
+    "p_mgkg": { "low_lt": 20 },
+    "k_mgkg": { "low_lt": 80 }
+  },
+  "irrigation": {
+    "dry_moisture_pct": 30,
+    "wet_moisture_pct": 85,
+    "skip_if_rain_prob_pct_gte": 60
+  },
+  "regen": {
+    "home": "Call the model only if no saved row, soil_reading_id changed, or valid_until passed.",
+    "analytics": "Call the model only if no row for that period_start+period_end, valid_until passed, or a newer daily bucket exists.",
+    "crops": "Call the model only if no saved row for this planting, soil_reading_id changed, valid_until passed, phase changed, or prompt version changed."
+  },
+  "cache_hours": {
+    "home": 12,
+    "analytics": 24,
+    "crops": 12
+  }
+}

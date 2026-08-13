@@ -2,16 +2,21 @@
 ///
 /// After auth and onboarding, the farmer lives here. Only the center content area
 /// swaps between Home, Analytics, Crops, and Profile via IndexedStack — the nav
-/// itself does not rebuild or slide away.
+/// itself does not rebuild or slide away. Starts the farm-alert engine, shows
+/// unread count on the bell, and red dots on tabs that have related alerts.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../shared/navigation/app_page_routes.dart';
 import '../analytics/presentation/analytics_page.dart';
 import '../crops/presentation/crops_page.dart';
 import '../home/presentation/home_page.dart';
+import '../notifications/logic/notification_controller.dart';
+import '../notifications/logic/notification_scope.dart';
+import '../notifications/presentation/notifications_page.dart';
 import '../profile/presentation/profile_page.dart';
 
 /// Persistent chrome: bottom nav stays; only the content area swaps.
@@ -24,6 +29,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+  final _notifications = NotificationController();
 
   static const _pages = [
     HomePage(),
@@ -33,38 +39,86 @@ class _AppShellState extends State<AppShell> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _notifications.start();
+  }
+
+  @override
+  void dispose() {
+    _notifications.dispose();
+    super.dispose();
+  }
+
+  /// Swap the content tab and ack that tab's related alerts.
+  void _onTabSelected(int value) {
+    _notifications.markTabRead(value);
+    setState(() => _index = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(index: _index, children: _pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
-        backgroundColor: AppColors.surface,
-        indicatorColor: AppColors.primary,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home, color: Colors.white),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.insights_outlined),
-            selectedIcon: const Icon(Icons.insights, color: Colors.white),
-            label: 'Analytics',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.eco_outlined),
-            selectedIcon: const Icon(Icons.eco, color: Colors.white),
-            label: 'Crops',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            selectedIcon: const Icon(Icons.person, color: Colors.white),
-            label: 'Profile',
-          ),
-        ],
+    return NotificationScope(
+      controller: _notifications,
+      child: ListenableBuilder(
+        listenable: _notifications,
+        builder: (context, _) {
+          return Scaffold(
+            body: IndexedStack(index: _index, children: _pages),
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: _index,
+              onDestinationSelected: _onTabSelected,
+              backgroundColor: AppColors.surface,
+              indicatorColor: AppColors.primary,
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              destinations: [
+                NavigationDestination(
+                  icon: _tabIcon(
+                    Icons.home_outlined,
+                    unread: _notifications.tabHasUnread(0),
+                  ),
+                  selectedIcon: const Icon(Icons.home, color: Colors.white),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  icon: _tabIcon(
+                    Icons.insights_outlined,
+                    unread: _notifications.tabHasUnread(1),
+                  ),
+                  selectedIcon: const Icon(Icons.insights, color: Colors.white),
+                  label: 'Analytics',
+                ),
+                NavigationDestination(
+                  icon: _tabIcon(
+                    Icons.eco_outlined,
+                    unread: _notifications.tabHasUnread(2),
+                  ),
+                  selectedIcon: const Icon(Icons.eco, color: Colors.white),
+                  label: 'Crops',
+                ),
+                NavigationDestination(
+                  icon: _tabIcon(
+                    Icons.person_outline,
+                    unread: _notifications.tabHasUnread(3),
+                  ),
+                  selectedIcon: const Icon(Icons.person, color: Colors.white),
+                  label: 'Profile',
+                ),
+              ],
+            ),
+          );
+        },
       ),
+    );
+  }
+
+  /// Red dot on unselected tabs that have related unread alerts.
+  Widget _tabIcon(IconData icon, {required bool unread}) {
+    if (!unread) return Icon(icon);
+    return Badge(
+      smallSize: 8,
+      backgroundColor: AppColors.error,
+      child: Icon(icon),
     );
   }
 }
@@ -87,6 +141,8 @@ class SoilGoodTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unread = NotificationScope.maybeOf(context)?.unreadCount ?? 0;
+
     return AppBar(
       backgroundColor: AppColors.surface,
       foregroundColor: AppColors.primary,
@@ -97,13 +153,17 @@ class SoilGoodTopBar extends StatelessWidget implements PreferredSizeWidget {
         children: [
           Icon(leadingIcon, color: AppColors.primary),
           const SizedBox(width: 8),
-          Text(
-            title,
-            style: GoogleFonts.literata(
-              fontWeight: FontWeight.w700,
-              fontStyle: FontStyle.italic,
-              color: AppColors.primary,
-              fontSize: 22,
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.literata(
+                fontWeight: FontWeight.w700,
+                fontStyle: FontStyle.italic,
+                color: AppColors.primary,
+                fontSize: 22,
+              ),
             ),
           ),
         ],
@@ -111,9 +171,21 @@ class SoilGoodTopBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         if (showNotifications)
           IconButton(
-            tooltip: 'Notifications (coming soon)',
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined),
+            tooltip: unread == 0
+                ? 'Notifications'
+                : 'Notifications ($unread unread)',
+            onPressed: () {
+              Navigator.of(context).push(
+                AppPageRoutes.slideFromRight(const NotificationsPage()),
+              );
+            },
+            icon: Badge(
+              isLabelVisible: unread > 0,
+              label: Text(unread > 9 ? '9+' : '$unread'),
+              backgroundColor: AppColors.error,
+              textColor: Colors.white,
+              child: const Icon(Icons.notifications_outlined),
+            ),
           ),
       ],
     );

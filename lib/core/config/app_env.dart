@@ -1,7 +1,7 @@
-/// Core config helper that loads Supabase credentials from the .env file.
+/// Core config helper that loads secrets from the .env file.
 ///
-/// Not a screen. Used only at startup before the database client is created.
-/// Missing keys fail loudly so we never ship a broken silent connection.
+/// Not a screen. Used at startup for Supabase. Groq lives in Edge Function
+/// secrets — never in this client `.env`.
 library;
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';

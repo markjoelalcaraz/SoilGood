@@ -30,6 +30,9 @@ Suggested text tokens (lock in code theme):
 - Persistent app shell (nav stays); content area only changes.
 - Skeleton loaders match real layout (cards/rows), not random shapes unrelated to the page.
 - Prefer reusable themed buttons/cards over one-off styles.
+- **Phone-first:** layouts must fit ~320–360px wide phones without overflow (notches, keyboard, bottom nav). On large screens, body content caps at **600px** centered; AppBar + bottom nav stay full width. See `.cursor/rules/page-architecture/responsive-ui.mdc`.
+- **Pull-to-refresh:** any screen that shows live/fetched data must be pullable. See `.cursor/rules/page-architecture/pull-to-refresh.mdc`.
+- **Scrollbars:** thin overlay (4–6px, no track, auto-hide). Never the thick OS/Chrome bar. See `.cursor/rules/page-architecture/scrollbar.mdc`.
 
 ## Implementation notes (when coding)
 - Load Literata + Nunito Sans via `google_fonts` or bundled assets.
