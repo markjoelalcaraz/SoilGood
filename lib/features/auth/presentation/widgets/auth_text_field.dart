@@ -18,6 +18,8 @@ class AuthTextField extends StatelessWidget {
     this.obscureText = false,
     this.onToggleVisibility,
     this.validator,
+    this.onChanged,
+    this.autofillHints,
     super.key,
   });
 
@@ -29,6 +31,8 @@ class AuthTextField extends StatelessWidget {
   final bool obscureText;
   final VoidCallback? onToggleVisibility;
   final String? Function(String?)? validator;
+  final ValueChanged<String>? onChanged;
+  final Iterable<String>? autofillHints;
 
   @override
   Widget build(BuildContext context) {
@@ -49,9 +53,12 @@ class AuthTextField extends StatelessWidget {
           keyboardType: keyboardType,
           obscureText: obscureText,
           validator: validator,
-          autofillHints: keyboardType == TextInputType.emailAddress
-              ? const [AutofillHints.email]
-              : (obscureText ? const [AutofillHints.password] : null),
+          onChanged: onChanged,
+          autofillHints:
+              autofillHints ??
+              (keyboardType == TextInputType.emailAddress
+                  ? const [AutofillHints.email]
+                  : (obscureText ? const [AutofillHints.password] : null)),
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: Icon(icon, color: AppColors.textSecondary, size: 21),

@@ -85,13 +85,18 @@ erDiagram
 
 ### `crops` (reference)
 - `id`, `name`, `scientific_name`
-- ideal min/max: moisture, pH, temperature, EC, salinity, N, P, K
+- ideal min/max: moisture, pH, temperature, EC, salinity (NPK columns null → universal low-only in app)
 - `days_to_maturity`, `phases` (jsonb: `{id, label, days}` ordered; sum = maturity)
+- `range_meta` (jsonb honesty labels: `moisture_basis`, `hydro_class`, `ec_basis`, …)
 - `growing_season`, `notes`
+- Research + seed: [`CROP_RANGES.md`](CROP_RANGES.md), [`supabase_crop_ranges_v1.sql`](supabase_crop_ranges_v1.sql)
 
 ### `plantings`
 - `id`, `farm_id`, `crop_id`
 - `planted_at`, `expected_harvest_at`, `status`
+  - `planned` \| `active` \| `harvested` \| `failed` \| `replaced`
+  - **Change crop** sets `replaced` (not harvested — that is reserved for a real harvest later).
+- **v1:** at most one row with `status = 'active'` per `farm_id` (partial unique index `plantings_one_active_per_farm_uidx`). Cleanup + index + status check: [`supabase_plantings_one_active.sql`](supabase_plantings_one_active.sql).
 
 ### `ai_assessments`
 - `id`, `farm_id`
@@ -158,13 +163,16 @@ Without hardware yet: insert **mock rows** into `soil_readings` (SQL or Table Ed
 - QR claim (text `device_uid` first)
 - Paid APIs
 
+Future direction (claim codes, multi-ESP32 zones, zone-aware AI): [`FUTURE_ENHANCEMENTS_DEVICES.md`](FUTURE_ENHANCEMENTS_DEVICES.md).
+
 ## SQL source of truth
 1. Run: [`supabase_schema.sql`](supabase_schema.sql) in the Supabase SQL Editor.
 2. If project was created with **Automatically expose new tables = OFF**, also run [`supabase_grants.sql`](supabase_grants.sql) (also appended to the schema file for new installs).
 3. Analytics history RPC + `period_start` / `period_end`: run [`supabase_analytics.sql`](supabase_analytics.sql).
 4. Crops phases + `ai_assessments.kind`: run [`supabase_crops_home_ai.sql`](supabase_crops_home_ai.sql).
-5. Alert rows: run [`supabase_notifications.sql`](supabase_notifications.sql).
-6. Optional mock reading (no ESP32): [`supabase_seed_soil_reading.sql`](supabase_seed_soil_reading.sql) — needs a claimed device.
+5. Per-crop ranges (17 PH crops + `range_meta`): run [`supabase_crop_ranges_v1.sql`](supabase_crop_ranges_v1.sql).
+6. Alert rows: run [`supabase_notifications.sql`](supabase_notifications.sql).
+7. Optional mock reading (no ESP32): [`supabase_seed_soil_reading.sql`](supabase_seed_soil_reading.sql) — needs a claimed device.
 
 ### Verification notes (2026-07-25)
 - Auth signup works with the **legacy anon JWT** (`eyJ...`).
@@ -172,6 +180,5 @@ Without hardware yet: insert **mock rows** into `soil_readings` (SQL or Table Ed
 - Without GRANTs, logged-in insert failed: `permission denied for table farms` (hint: GRANT to `authenticated`). RLS was not the blocker.
 
 ## Open decisions
-- Exact crop list / ideal ranges (DA, PhilRice, etc.)
 - ESP32 write path: Edge Function vs constrained insert
 - Weather write timing: with each reading vs scheduled

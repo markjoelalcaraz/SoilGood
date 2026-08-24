@@ -8,7 +8,7 @@
 | Sensor persist interval | ~**15 minutes** |
 | Realtime | Supabase Realtime + Flutter **listener** (not a paid “subscription”) |
 | Weather / other APIs | **Open-Meteo** (free, no API key) + prefer free tiers |
-| Generated AI insights | **Groq** (`llama-3.3-70b-versatile`) via Edge Function `soilgood-insights` |
+| Generated AI insights | **Groq** (`openai/gpt-oss-120b`) via Edge Function `soilgood-insights` |
 | Map tiles | **Carto Voyager** via `flutter_map` (free; OSM attribution) |
 
 ## Why Supabase
@@ -58,8 +58,9 @@ Sketch: `firmware/esp32/soilgood_heartbeat/`
 
 ## Groq (all generated AI insights)
 - Flutter calls Edge Function `soilgood-insights` with the user JWT (`supabase.functions.invoke`). It never holds `GROQ_API_KEY`.
+- Home AI runs only while the app is open (first load, pull, or Realtime new `soil_readings` id). Closed app does not call Groq. Fingerprint / cache still skip the model when the farmer story is unchanged.
 - The function attaches a **page slice** of [`insights.json`](../../supabase/functions/soilgood-insights/insights.json) and calls Groq. No soil data → `no_reading`, Groq is **not** called.
-- Model: `llama-3.3-70b-versatile`. **Only** model for generated insight text (Home today, Crops care, Analytics period).
+- Model: `openai/gpt-oss-120b`. **Only** model for generated insight text (Home today, Crops care, Analytics period).
 - Jobs: Home = one urgent action today; Crops = care for the selected planting/phase; Analytics = kalagayan of the **selected date window**. Catalog scores and phase days are local, not Groq.
 - Results saved in `ai_assessments` (`kind` + optional `period_start` / `period_end` / `planting_id`) + `ai_recommendations`. Analytics lookup is by start+end, not a generic 7/30. Regen only when the page’s cache rules say so.
 - Free-tier rate limits apply (TPM/RPM on Groq’s dashboard). Fail visibly on the AI block only.

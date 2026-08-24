@@ -1,12 +1,15 @@
 /// Loads insights.json once and classifies sensor numbers with local bands.
 ///
 /// Same file the Edge Function uses for Groq slices. Flutter only classifies
-/// here (0 tokens). Catalog match scores come from `crops`, not this file.
+/// here (0 tokens). When [CropBandRanges] is passed, moisture/temp/pH/EC/salt
+/// use crop baselines + phase overlays; NPK stays universal low-only.
 library;
 
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
+
+import 'crop_band_classify.dart';
 
 /// Local insight rules + band classifier. 0 Groq tokens to load.
 class InsightsConfig {
@@ -70,6 +73,9 @@ class InsightsConfig {
   }
 
   /// Classified latest reading + optional forecast rain probs. No invented numbers.
+  ///
+  /// Pass [cropRanges] when an active planting exists so moisture/temp/pH/EC/salt
+  /// use crop + phase overlays. Omit for universal bands + extreme floors.
   Map<String, dynamic> classifiedFacts({
     required String soilReadingId,
     required String validation,
@@ -85,46 +91,42 @@ class InsightsConfig {
     double? rainProbToday,
     double? rainProbTomorrow,
     String? conditionToday,
+    double? airTempC,
+    double? humidityPct,
+    double? windKmh,
+    double? rainfallMmToday,
+    String? conditionTomorrow,
+    CropBandRanges? cropRanges,
   }) {
+    final moisture = classifyMoistureBand(
+      value: moisturePercent,
+      crop: cropRanges,
+    );
+    final tempBand = classifyTempBand(
+      value: soilTemperatureC,
+      crop: cropRanges,
+    );
+    final phBand = classifyPhBand(value: ph, crop: cropRanges);
+    final ecBand = classifyEcBand(value: ec, crop: cropRanges);
+    final salinityBand = classifySalinityBand(
+      value: salinity,
+      crop: cropRanges,
+    );
+
     return {
       'soil_reading_id': soilReadingId,
       'validation': validation,
       'validation_message': ?validationMessage,
       'moisture_pct': moisturePercent,
-      'moisture': _band(
-        moisturePercent,
-        _bands['moisture_pct'] as Map<String, dynamic>?,
-        lowKey: 'dry_lt',
-        highKey: 'wet_gt',
-        lowLabel: 'dry',
-        highLabel: 'wet',
-      ),
+      'moisture': moisture,
       'ph': ph,
-      'ph_band': _band(
-        ph,
-        _bands['ph'] as Map<String, dynamic>?,
-        lowKey: 'low_lt',
-        highKey: 'high_gt',
-      ),
+      'ph_band': phBand,
       'soil_temp_c': soilTemperatureC,
-      'temp_band': _band(
-        soilTemperatureC,
-        _bands['soil_temp_c'] as Map<String, dynamic>?,
-        lowKey: 'low_lt',
-        highKey: 'high_gt',
-      ),
+      'temp_band': tempBand,
       'ec': ec,
-      'ec_band': _band(
-        ec,
-        _bands['ec_ds_m'] as Map<String, dynamic>?,
-        lowKey: 'low_lt',
-        highKey: 'high_gt',
-      ),
+      'ec_band': ecBand,
       'salinity_ppt': salinity,
-      'salinity_band': _highOnly(
-        salinity,
-        _bands['salinity_ppt'] as Map<String, dynamic>?,
-      ),
+      'salinity_band': salinityBand,
       'nitrogen': nitrogen,
       'n_band': _lowOnly(nitrogen, _bands['n_mgkg'] as Map<String, dynamic>?),
       'phosphorus': phosphorus,
@@ -134,36 +136,19 @@ class InsightsConfig {
       'rain_prob_today': rainProbToday,
       'rain_prob_tomorrow': rainProbTomorrow,
       'condition_today': ?conditionToday,
+      'air_temp_c': airTempC,
+      'humidity_pct': humidityPct,
+      'wind_kmh': windKmh,
+      'rainfall_mm_today': rainfallMmToday,
+      'condition_tomorrow': ?conditionTomorrow,
+      if (cropRanges != null) 'crop_ranges_fp': cropRanges.fingerprintToken(),
     };
-  }
-
-  String _band(
-    double? value,
-    Map<String, dynamic>? spec, {
-    required String lowKey,
-    required String highKey,
-    String lowLabel = 'low',
-    String highLabel = 'high',
-  }) {
-    if (value == null || spec == null) return 'missing';
-    final low = (spec[lowKey] as num?)?.toDouble();
-    final high = (spec[highKey] as num?)?.toDouble();
-    if (low != null && value < low) return lowLabel;
-    if (high != null && value > high) return highLabel;
-    return 'ok';
   }
 
   String _lowOnly(double? value, Map<String, dynamic>? spec) {
     if (value == null || spec == null) return 'missing';
     final low = (spec['low_lt'] as num?)?.toDouble();
     if (low != null && value < low) return 'low';
-    return 'ok';
-  }
-
-  String _highOnly(double? value, Map<String, dynamic>? spec) {
-    if (value == null || spec == null) return 'missing';
-    final high = (spec['high_gt'] as num?)?.toDouble();
-    if (high != null && value > high) return 'high';
     return 'ok';
   }
 }

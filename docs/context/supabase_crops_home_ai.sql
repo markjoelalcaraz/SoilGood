@@ -1,6 +1,7 @@
 -- SoilGood — Crops catalog phases + AI assessment kind (Home / Analytics / Crops)
 -- Run in Supabase SQL Editor after supabase_schema.sql and supabase_analytics.sql.
 -- Safe to re-run.
+-- After this file, run supabase_crop_ranges_v1.sql for the 17-crop researched baselines.
 
 -- ---------------------------------------------------------------------------
 -- crops: duration + cultivation phases (local timeline, not Groq)

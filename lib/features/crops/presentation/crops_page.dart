@@ -245,10 +245,37 @@ class _CropsPageState extends State<CropsPage> {
     }
   }
 
-  /// Optimistic: show the plan, then insert the planting row.
+  /// Confirm, then optimistic plan + insert. Blocks while a select is pending.
   Future<void> _selectCrop(CropCatalogEntry crop) async {
     final farmId = _farmId;
     if (farmId == null) return;
+    // Already planted or mid-insert — avoid double-tap duplicate actives.
+    if (_planting != null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Plant ${crop.name} today?'),
+        content: const Text(
+          'This starts a cultivation plan for this crop on your farm.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Select crop'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!mounted) return;
+    // Second guard after the dialog (another tap may have started meanwhile).
+    if (_planting != null) return;
+
     final today = manilaCalendarDate(DateTime.now());
     final days = crop.daysToMaturity;
     final optimistic = Planting(

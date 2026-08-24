@@ -1,10 +1,11 @@
 /// Crops care insight client (irrigation, fertilizer, soil) — not catalog scores.
 ///
 /// Crops tab only. Sends crop/phase + classified facts to the Edge Function;
-/// the function attaches `prompts.crops.care`. Home has its own today-tip client.
+/// the function attaches `prompts.crops.care`. Home has its own three-tip client.
 library;
 
 import '../../../core/ai/ai_json_parse.dart';
+import '../../../core/ai/crop_band_classify.dart';
 import '../../../core/ai/groq_chat_client.dart';
 import '../../../core/ai/insights_config.dart';
 import '../../../core/ai/saved_assessment.dart';
@@ -32,6 +33,10 @@ class CropsCareAiClient {
     required CropTimeline timeline,
     WeatherSnapshot? weather,
   }) async {
+    final cropRanges = CropBandRanges.fromCrop(
+      planting.crop,
+      phaseId: timeline.current.id,
+    );
     final facts = insights.classifiedFacts(
       soilReadingId: reading.id,
       validation: reading.validationStatus,
@@ -53,6 +58,7 @@ class CropsCareAiClient {
       conditionToday: weather?.daily.isNotEmpty == true
           ? weather!.daily.first.conditionLabel
           : null,
+      cropRanges: cropRanges,
     );
 
     final json = await _chat.completeJson(

@@ -50,12 +50,12 @@
     "semantic_hash": "0a33592f69d6044fbdf87eb92b4afa8f"
   },
   "lib/core/theme/app_theme.dart": {
-    "mtime": 1786630245.5989945,
+    "mtime": 1786633752.711053,
     "ast_hash": "f1e512890432bd92c0cc71fcb71f9190",
     "semantic_hash": ""
   },
   "lib/features/analytics/presentation/analytics_page.dart": {
-    "mtime": 1786630245.5979805,
+    "mtime": 1786633752.711053,
     "ast_hash": "dd4cdbd15f2d6e43b92e5f5a4d4c1efd",
     "semantic_hash": ""
   },
@@ -65,9 +65,9 @@
     "semantic_hash": "d2089191da03740e793db0b28c8d40af"
   },
   "lib/features/auth/logic/auth_controller.dart": {
-    "mtime": 1785125779.370254,
-    "ast_hash": "328690a0282075aefa5fb3e436a18899",
-    "semantic_hash": "328690a0282075aefa5fb3e436a18899"
+    "mtime": 1787582806.4245944,
+    "ast_hash": "2f709b72b4d84f42049ade937456c041",
+    "semantic_hash": ""
   },
   "lib/features/auth/presentation/auth_gate.dart": {
     "mtime": 1785125779.3632762,
@@ -75,14 +75,14 @@
     "semantic_hash": "b08235535c6ab1dbefc6ef10049016ae"
   },
   "lib/features/auth/presentation/login_page.dart": {
-    "mtime": 1785125779.3653467,
-    "ast_hash": "aaf94a3dd18ddd200084c5126c2cabc7",
-    "semantic_hash": "aaf94a3dd18ddd200084c5126c2cabc7"
+    "mtime": 1787582804.6323845,
+    "ast_hash": "3d7dbeb089ce97bd8881ce1c9ad9a8ac",
+    "semantic_hash": ""
   },
   "lib/features/auth/presentation/signup_page.dart": {
-    "mtime": 1785125779.3653467,
-    "ast_hash": "fc8b0af1fa3007f9c4b54197b4df5c33",
-    "semantic_hash": "fc8b0af1fa3007f9c4b54197b4df5c33"
+    "mtime": 1787583183.8770905,
+    "ast_hash": "0da92ae5fb8eed36f409dc0d0a8b5413",
+    "semantic_hash": ""
   },
   "lib/features/auth/presentation/widgets/auth_error_banner.dart": {
     "mtime": 1785125779.370254,
@@ -95,77 +95,77 @@
     "semantic_hash": "afb578feb6d6904871a6d025bbd17605"
   },
   "lib/features/auth/presentation/widgets/auth_scaffold.dart": {
-    "mtime": 1786630245.5979805,
+    "mtime": 1786633752.711053,
     "ast_hash": "2238a39ac636c2c82d5600c932f76143",
     "semantic_hash": ""
   },
   "lib/features/auth/presentation/widgets/auth_text_field.dart": {
-    "mtime": 1785125779.3771293,
-    "ast_hash": "c8daec4d35be42030ab9bb02302de52e",
-    "semantic_hash": "c8daec4d35be42030ab9bb02302de52e"
+    "mtime": 1787582728.8340862,
+    "ast_hash": "2aa821c022fb91bb9bc2d3afab6ba80b",
+    "semantic_hash": ""
   },
   "lib/features/crops/presentation/crop_plan_page.dart": {
-    "mtime": 1786630245.4869866,
+    "mtime": 1786633752.6421604,
     "ast_hash": "06f01cde824165c1562a4c498296402d",
     "semantic_hash": ""
   },
   "lib/features/crops/presentation/crops_page.dart": {
-    "mtime": 1786631903.887468,
-    "ast_hash": "48356c4b2d5b502442c3aabe7e26faab",
+    "mtime": 1787583504.5512438,
+    "ast_hash": "4fb15764fb9b770915f0a8d537d42e1d",
     "semantic_hash": ""
   },
   "lib/features/home/data/soil_reading.dart": {
-    "mtime": 1786630245.549778,
+    "mtime": 1786633752.711053,
     "ast_hash": "e67a7e9d124e0671b0e8065cca7fd0db",
     "semantic_hash": ""
   },
   "lib/features/home/data/soil_readings_repository.dart": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1786633752.711053,
     "ast_hash": "52f4bd689f8246a0b7d4c6b7f522e12f",
     "semantic_hash": ""
   },
   "lib/features/home/presentation/home_page.dart": {
-    "mtime": 1786630245.5186353,
-    "ast_hash": "9171b241397adf907f168dbc21e1b712",
+    "mtime": 1787582877.3339982,
+    "ast_hash": "6ac0231a85807d016f2338f6ec3612fe",
     "semantic_hash": ""
   },
   "lib/features/onboarding/data/onboarding_repository.dart": {
-    "mtime": 1786630245.5989945,
+    "mtime": 1786633752.711053,
     "ast_hash": "1b983fa888258c986cd9fe8c964049d8",
     "semantic_hash": ""
   },
   "lib/features/onboarding/presentation/device_onboarding_page.dart": {
-    "mtime": 1786630245.46682,
+    "mtime": 1786633752.6128042,
     "ast_hash": "8824d04bc1d1f16cad9cd33ba461aca8",
     "semantic_hash": ""
   },
   "lib/features/onboarding/presentation/location_onboarding_page.dart": {
-    "mtime": 1786630245.4708314,
+    "mtime": 1786633752.6421604,
     "ast_hash": "693d80b7d81a40c74a908380b6c2ecfa",
     "semantic_hash": ""
   },
   "lib/features/onboarding/presentation/profile_onboarding_page.dart": {
-    "mtime": 1786630245.5161107,
+    "mtime": 1786633752.710044,
     "ast_hash": "eec3060e985b5de1d5faf6286de3f1cb",
     "semantic_hash": ""
   },
   "lib/features/profile/presentation/profile_page.dart": {
-    "mtime": 1786630245.5989945,
+    "mtime": 1786633752.711053,
     "ast_hash": "0cbb455cb01039b5216554ff63782231",
     "semantic_hash": ""
   },
   "lib/features/shell/app_shell.dart": {
-    "mtime": 1786630245.4380207,
-    "ast_hash": "688f43717fa145aba0eb0a88f354d945",
+    "mtime": 1787570181.6883082,
+    "ast_hash": "1a8b8e94d155a70221cbf3d846fc93c9",
     "semantic_hash": ""
   },
   "lib/features/weather/data/farm_location_repository.dart": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1786633752.710044,
     "ast_hash": "938bb81d9197abf4727b3d767393077a",
     "semantic_hash": ""
   },
   "lib/features/weather/data/open_meteo_weather_service.dart": {
-    "mtime": 1786630245.5979805,
+    "mtime": 1786633752.711053,
     "ast_hash": "b9ec0519a4bb80e5a74be4fda962d5d4",
     "semantic_hash": ""
   },
@@ -190,7 +190,7 @@
     "semantic_hash": "14c6f4900b15f296bd7edf5a29e52001"
   },
   "lib/shared/widgets/ui_primitives.dart": {
-    "mtime": 1786630245.483984,
+    "mtime": 1786633752.6421604,
     "ast_hash": "db3198b1cbac49ebc9d502da78774b8e",
     "semantic_hash": ""
   },
@@ -205,7 +205,7 @@
     "semantic_hash": "350230e8b0172c3492c1a20059add9fb"
   },
   "README.md": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1787540343.2202768,
     "ast_hash": "345c187710e816bf7eed3782b14ae3fa",
     "semantic_hash": ""
   },
@@ -220,68 +220,68 @@
     "semantic_hash": ""
   },
   "docs/context/BACKEND.md": {
-    "mtime": 1786630245.5979805,
-    "ast_hash": "6cd08cb706b7846ffb7cb09c5f2aa913",
+    "mtime": 1787570872.765282,
+    "ast_hash": "8e2d3b76323d0a8e65506fba100add59",
     "semantic_hash": ""
   },
   "docs/context/DATA_MODEL.md": {
-    "mtime": 1786631779.4096007,
-    "ast_hash": "4b2ed8ea337f2cc94796980ff2652002",
+    "mtime": 1787584465.5423436,
+    "ast_hash": "fdaeb69039ca2c0e2a5f948bb487c281",
     "semantic_hash": ""
   },
   "docs/context/FEATURES.md": {
-    "mtime": 1786631780.2694073,
-    "ast_hash": "16357315e7057ef286fd2e3014614c0f",
+    "mtime": 1787584465.8625567,
+    "ast_hash": "0f437e6a6be5a84247ca1b7362155d5f",
     "semantic_hash": ""
   },
   "docs/context/PROJECT_OVERVIEW.md": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1786633752.711053,
     "ast_hash": "a9855943be4eaf984cc76c491a972d58",
     "semantic_hash": ""
   },
   "docs/context/SECURITY.md": {
-    "mtime": 1786456663.4664783,
-    "ast_hash": "781de0b7daa547bfb7b4d8b8a501be27",
+    "mtime": 1787582896.2629576,
+    "ast_hash": "4e44401f485f1a2412bb98599c903a4b",
     "semantic_hash": ""
   },
   "docs/context/UI_THEME.md": {
-    "mtime": 1786630245.4879854,
+    "mtime": 1787540343.2137744,
     "ast_hash": "1fed78bd55d76bb1fda8bd6df93a694d",
     "semantic_hash": ""
   },
   "docs/pages/_TEMPLATE.md": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1787540343.2202768,
     "ast_hash": "3bb861c6bd1eb98d3711f948457ef9fd",
     "semantic_hash": ""
   },
   "docs/pages/analytics.md": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1786633752.710044,
     "ast_hash": "8a4962491290151ad5b81923281048ca",
     "semantic_hash": ""
   },
   "docs/pages/crops.md": {
-    "mtime": 1786631778.4337158,
-    "ast_hash": "bf8e3e60a4f2fffee54025b5086c41a7",
+    "mtime": 1787584072.1960537,
+    "ast_hash": "e270e2781150f252f6abd91426434c3d",
     "semantic_hash": ""
   },
   "docs/pages/home.md": {
-    "mtime": 1786631783.3053918,
-    "ast_hash": "02df147ce144509d71cfe421e63fbb5b",
+    "mtime": 1787582907.4911814,
+    "ast_hash": "b511911bfb98457f8444fd339e2b6368",
     "semantic_hash": ""
   },
   "docs/pages/onboarding.md": {
-    "mtime": 1786630245.5186353,
-    "ast_hash": "248726c85ed3336cba1d2200b2b096c4",
+    "mtime": 1787582896.0500376,
+    "ast_hash": "67e662b792de2a47dfc691f9142dc613",
     "semantic_hash": ""
   },
   "docs/pages/profile.md": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1786633752.710044,
     "ast_hash": "5ac0300a73327cccb1614ad193b6e70f",
     "semantic_hash": ""
   },
   "firmware/esp32/soilgood_heartbeat/README.md": {
-    "mtime": 1786630245.5186353,
-    "ast_hash": "5abb25410f224dda4a4faec41fce939f",
+    "mtime": 1787564089.7394526,
+    "ast_hash": "7922c87179bdac72e8c684b1e08fdabd",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md": {
@@ -290,12 +290,12 @@
     "semantic_hash": ""
   },
   "pubspec.yaml": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1787540343.2202768,
     "ast_hash": "306eae16e7087ac9463f15124143b5cc",
     "semantic_hash": ""
   },
   "web/index.html": {
-    "mtime": 1786630245.4589603,
+    "mtime": 1786633752.6128042,
     "ast_hash": "aab8f22499c1831a5f19ca51ada40153",
     "semantic_hash": ""
   },
@@ -440,203 +440,293 @@
     "semantic_hash": ""
   },
   "lib/shared/data/refresh_timeout.dart": {
-    "mtime": 1786630245.5221648,
+    "mtime": 1786633752.711053,
     "ast_hash": "b6a39dc069c0db3bdc255051bef6dbd3",
     "semantic_hash": ""
   },
   "lib/shared/widgets/app_refresh_scroll.dart": {
-    "mtime": 1786630245.4589603,
+    "mtime": 1786633752.6082683,
     "ast_hash": "21fb3069542b3b5cfae33d55cf84289e",
     "semantic_hash": ""
   },
   "lib/shared/widgets/app_content_width.dart": {
-    "mtime": 1786630245.4549434,
+    "mtime": 1786633752.5971265,
     "ast_hash": "13f57e5c7ec09e490351f5efd61e548f",
     "semantic_hash": ""
   },
   "lib/features/analytics/data/daily_soil_bucket.dart": {
-    "mtime": 1786630245.4869866,
+    "mtime": 1786633752.6426704,
     "ast_hash": "6c56d2ee29bf6da32e661a7a43c58a6e",
     "semantic_hash": ""
   },
   "lib/features/analytics/data/period_ai_repository.dart": {
-    "mtime": 1786630245.5161107,
+    "mtime": 1786633752.710044,
     "ast_hash": "e5963dcd38337b0cd365cb97f89066f7",
     "semantic_hash": ""
   },
   "lib/features/analytics/data/period_assessment.dart": {
-    "mtime": 1786630245.5989945,
+    "mtime": 1786633752.7120442,
     "ast_hash": "214e4c2974520ecf4df0998aedb080f5",
     "semantic_hash": ""
   },
   "lib/features/analytics/data/soil_history_repository.dart": {
-    "mtime": 1786630245.4688327,
+    "mtime": 1786633752.6128042,
     "ast_hash": "ef11f44fcfee1bbf20d2f7a9814340a4",
     "semantic_hash": ""
   },
   "lib/features/analytics/logic/analytics_stats.dart": {
-    "mtime": 1786630245.513104,
+    "mtime": 1786633752.705523,
     "ast_hash": "80042a375b1830d9ad7016bdb45d2f41",
     "semantic_hash": ""
   },
   "lib/features/analytics/logic/groq_period_ai_client.dart": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1787540343.2202768,
     "ast_hash": "71fdcd5f6c31592564a5e35f2c0b4bfc",
     "semantic_hash": ""
   },
   "lib/features/analytics/logic/manila_time.dart": {
-    "mtime": 1786630245.4879854,
+    "mtime": 1786633752.6973531,
     "ast_hash": "6ffe59dbd0a00ad95aafed03b8905cba",
     "semantic_hash": ""
   },
   "lib/features/analytics/logic/period_ai_regen.dart": {
-    "mtime": 1786630245.4360247,
+    "mtime": 1786633752.5682359,
     "ast_hash": "a2bec72a4cbce63f4ccbefa5f5075f6f",
     "semantic_hash": ""
   },
   "lib/features/analytics/presentation/day_readings_page.dart": {
-    "mtime": 1786630245.483984,
+    "mtime": 1786633752.6421604,
     "ast_hash": "b98a1415142930ce5977155f7c164ee8",
     "semantic_hash": ""
   },
   "docs/context/AI_INSIGHTS.md": {
-    "mtime": 1786631781.0602627,
-    "ast_hash": "75d6d38129f6399e353691c2ffe061e7",
+    "mtime": 1787582907.4921968,
+    "ast_hash": "d412a9c8da0e1d52c69a3cda227733ed",
     "semantic_hash": ""
   },
   "lib/core/ai/ai_json_parse.dart": {
-    "mtime": 1786630245.4869866,
+    "mtime": 1786633752.6426704,
     "ast_hash": "3ebc7b118da29d6d20243d4dc9c63c53",
     "semantic_hash": ""
   },
   "lib/core/ai/groq_chat_client.dart": {
-    "mtime": 1786456633.8819177,
-    "ast_hash": "2102ed8f233c48a4282a5e1d12654341",
+    "mtime": 1786961846.2000277,
+    "ast_hash": "6212190365b855f24684db6547272598",
     "semantic_hash": ""
   },
   "lib/core/ai/insights_config.dart": {
-    "mtime": 1786456634.8157492,
-    "ast_hash": "135ce65133ac7224cbee4f33b58d1f49",
+    "mtime": 1787582722.0925758,
+    "ast_hash": "f177c2e11c306a26ed5f70041a469f17",
     "semantic_hash": ""
   },
   "lib/core/ai/saved_assessment.dart": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1786633752.711053,
     "ast_hash": "152f763de9f81bac436238cf0855d0d3",
     "semantic_hash": ""
   },
   "lib/core/ai/saved_assessment_repository.dart": {
-    "mtime": 1786630245.44768,
+    "mtime": 1786633752.5925803,
     "ast_hash": "2e1a93b660f22e292123740f9ff88011",
     "semantic_hash": ""
   },
   "lib/features/crops/data/crop_catalog.dart": {
-    "mtime": 1786631823.7003026,
-    "ast_hash": "283d8738f3d56cfa2ec398934c139357",
+    "mtime": 1787582721.9274535,
+    "ast_hash": "899da2c445634a7da4f2f6090aa4d439",
     "semantic_hash": ""
   },
   "lib/features/crops/data/crops_repository.dart": {
-    "mtime": 1786630245.5186353,
-    "ast_hash": "aa6876ec8dfab8c8390ddcab1a5f9fd3",
+    "mtime": 1787584065.7689953,
+    "ast_hash": "39f8ed0d4d6955cac0ba7edcc0297b86",
     "semantic_hash": ""
   },
   "lib/features/crops/data/planting.dart": {
-    "mtime": 1786630245.5979805,
+    "mtime": 1786633752.711053,
     "ast_hash": "42cbfa1b7fb21ed399c49b27d55cd048",
     "semantic_hash": ""
   },
   "lib/features/crops/logic/crop_match.dart": {
-    "mtime": 1786631824.0969899,
+    "mtime": 1786633752.6421604,
     "ast_hash": "a3dfe12b2d14fa889fa744ad19f4071f",
     "semantic_hash": ""
   },
   "lib/features/crops/logic/crop_timeline.dart": {
-    "mtime": 1786630245.5989945,
+    "mtime": 1786633752.711053,
     "ast_hash": "27124730cbf4acb979221f2b4f3eefcb",
     "semantic_hash": ""
   },
   "lib/features/crops/logic/crops_care_ai_client.dart": {
-    "mtime": 1786456623.041578,
-    "ast_hash": "684218386e606930268e3b837d767211",
+    "mtime": 1787582824.187437,
+    "ast_hash": "af03e4e228502c1e7e3c820df74cba32",
     "semantic_hash": ""
   },
   "lib/features/crops/logic/crops_care_regen.dart": {
-    "mtime": 1786630245.5211506,
+    "mtime": 1786633752.711053,
     "ast_hash": "e2c227fd2ee71da505b63e33c19f07a8",
     "semantic_hash": ""
   },
   "lib/features/home/logic/home_ai_client.dart": {
-    "mtime": 1786456615.7450917,
-    "ast_hash": "247e2c31c4e3ff56aee53686f4b0a68c",
+    "mtime": 1787582819.195662,
+    "ast_hash": "73c2c90985e02123675f49aefd369959",
     "semantic_hash": ""
   },
   "lib/features/home/logic/home_ai_regen.dart": {
-    "mtime": 1786630245.4549434,
-    "ast_hash": "3ac4b3503a375cbdc91e6fe1de4279f8",
+    "mtime": 1787570848.5864482,
+    "ast_hash": "90f9e322a6a41f5b39a391bd8b77df12",
     "semantic_hash": ""
   },
   "supabase/functions/soilgood-insights/index.ts": {
-    "mtime": 1786630245.5737557,
-    "ast_hash": "b0f0053b27bf473c368da635e24549d3",
+    "mtime": 1786961845.5968604,
+    "ast_hash": "e1ccb987a78be1f65e046f6f33cd4f2b",
     "semantic_hash": ""
   },
   "lib/features/notifications/data/farm_notification.dart": {
-    "mtime": 1786630245.44768,
+    "mtime": 1786633752.5920715,
     "ast_hash": "d090cdbcd705fb0ba48e2d8af8a1c826",
     "semantic_hash": ""
   },
   "lib/features/notifications/data/notifications_repository.dart": {
-    "mtime": 1786630245.483984,
+    "mtime": 1786633752.6421604,
     "ast_hash": "47eb1dc6b0759f5faf83f175b808e232",
     "semantic_hash": ""
   },
   "lib/features/notifications/logic/notification_controller.dart": {
-    "mtime": 1786630245.4688327,
-    "ast_hash": "7493d28fcb3850ff0cc4137e76aa0120",
+    "mtime": 1787582866.1423793,
+    "ast_hash": "d8ac0326dc18f9cbc738eafd6f1d2fed",
     "semantic_hash": ""
   },
   "lib/features/notifications/logic/notification_evaluator.dart": {
-    "mtime": 1786630245.5176208,
-    "ast_hash": "1cf108ec059e61781d2cbb6251fc0f6d",
+    "mtime": 1787582865.4267254,
+    "ast_hash": "c9ab1d1f86e3e49f4a6fcc76a9ffb902",
     "semantic_hash": ""
   },
   "docs/pages/notifications.md": {
-    "mtime": 1786630245.483984,
+    "mtime": 1786633752.6421604,
     "ast_hash": "e5ed68674adc6ed1bff07df2270fdc79",
     "semantic_hash": ""
   },
   "lib/features/notifications/presentation/notifications_page.dart": {
-    "mtime": 1786630245.5211506,
+    "mtime": 1786633752.711053,
     "ast_hash": "8fa7b6438f1f1a63f87748f23ddf3369",
     "semantic_hash": ""
   },
   "lib/features/analytics/logic/analytics_period.dart": {
-    "mtime": 1786630245.4549434,
+    "mtime": 1786633752.5981114,
     "ast_hash": "a43fe0759022395ab9f1211de0f8bf69",
     "semantic_hash": ""
   },
   "lib/features/analytics/presentation/analytics_filters.dart": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1786633752.710044,
     "ast_hash": "726d3764ed1727080503e21efa464176",
     "semantic_hash": ""
   },
   "lib/features/analytics/presentation/metric_chart_style.dart": {
-    "mtime": 1786630245.5186353,
+    "mtime": 1786633752.710044,
     "ast_hash": "7bdf661a25f029ae8830dbaa4fc0dfa7",
     "semantic_hash": ""
   },
   "lib/features/notifications/logic/notification_scope.dart": {
-    "mtime": 1786630245.435022,
+    "mtime": 1786633752.5672314,
     "ast_hash": "2f05c062be6a35570296594689e36eca",
     "semantic_hash": ""
   },
   "lib/features/analytics/data/period_weather.dart": {
-    "mtime": 1786630245.6015058,
+    "mtime": 1786633752.7120442,
     "ast_hash": "903ca8bbfe4faa230b268e2e484ec4f6",
     "semantic_hash": ""
   },
   "lib/features/analytics/data/period_weather_repository.dart": {
-    "mtime": 1786630245.5989945,
+    "mtime": 1786633752.711053,
     "ast_hash": "702b58786e728ec453ddd8ecba693e96",
+    "semantic_hash": ""
+  },
+  "docs/context/supabase_grants.sql": {
+    "mtime": 1785124323.3785143,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json": {
+    "mtime": 1768576196.6427712,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json": {
+    "mtime": 1768576196.7191203,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "docs/context/API_INTEGRATION.md": {
+    "mtime": 1786959867.0111103,
+    "ast_hash": "d3f5b3e77c2fec0405f869c2b9266d80",
+    "semantic_hash": ""
+  },
+  "docs/context/supabase_analytics.sql": {
+    "mtime": 1786633752.711053,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "docs/context/supabase_crops_home_ai.sql": {
+    "mtime": 1786633752.711053,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "docs/context/supabase_notifications.sql": {
+    "mtime": 1786633752.710044,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "docs/context/supabase_realtime.sql": {
+    "mtime": 1786633752.711053,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "docs/context/supabase_schema.sql": {
+    "mtime": 1786633752.710044,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "docs/context/supabase_seed_soil_reading.sql": {
+    "mtime": 1786633752.711053,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "supabase/functions/soilgood-insights/insights.json": {
+    "mtime": 1786962316.446051,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "lib/features/home/logic/home_ai_story.dart": {
+    "mtime": 1787582811.0130188,
+    "ast_hash": "0f9380cee93bb7228d5bb6af131ab031",
+    "semantic_hash": ""
+  },
+  "lib/core/ai/crop_band_classify.dart": {
+    "mtime": 1787582887.128962,
+    "ast_hash": "54034c05addab32dd365c40094819747",
+    "semantic_hash": ""
+  },
+  "lib/core/validation/app_validators.dart": {
+    "mtime": 1787582723.7433443,
+    "ast_hash": "10064fe4d25374a09070ac9eb2b36cbe",
+    "semantic_hash": ""
+  },
+  "lib/features/auth/presentation/widgets/password_rules_checklist.dart": {
+    "mtime": 1787582726.303126,
+    "ast_hash": "5b82e70f629a3e24e139d0107f6c503b",
+    "semantic_hash": ""
+  },
+  "test/core/validation/app_validators_test.dart": {
+    "mtime": 1787582894.2481923,
+    "ast_hash": "c62d3cd746d0b89aeb96281b53b9264b",
+    "semantic_hash": ""
+  },
+  "docs/context/CROP_RANGES.md": {
+    "mtime": 1787582695.5618906,
+    "ast_hash": "4606a123999a727804bc9ff718caa379",
+    "semantic_hash": ""
+  },
+  "docs/context/FUTURE_ENHANCEMENTS_DEVICES.md": {
+    "mtime": 1787584457.106945,
+    "ast_hash": "dc2d0c4e08da9e00dd8a08f1d10bdf72",
     "semantic_hash": ""
   }
 }

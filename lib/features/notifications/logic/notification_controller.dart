@@ -9,6 +9,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/ai/crop_band_classify.dart';
 import '../../../core/ai/insights_config.dart';
 import '../../crops/data/crops_repository.dart';
 import '../../crops/logic/crop_timeline.dart';
@@ -152,6 +153,17 @@ class NotificationController extends ChangeNotifier {
       final weather = await _tryWeather();
       if (_closed) return;
 
+      final planting = await _cropsRepo.fetchActivePlanting(farmId);
+      if (_closed) return;
+      CropBandRanges? cropRanges;
+      if (planting != null) {
+        final timeline = timelineFor(planting);
+        cropRanges = CropBandRanges.fromCrop(
+          planting.crop,
+          phaseId: timeline?.current.id,
+        );
+      }
+
       final facts = config.classifiedFacts(
         soilReadingId: reading.id,
         validation: reading.validationStatus,
@@ -166,6 +178,7 @@ class NotificationController extends ChangeNotifier {
         potassium: reading.potassium,
         rainProbToday: weather?.rainProbability,
         conditionToday: weather?.conditionLabel,
+        cropRanges: cropRanges,
       );
 
       final drafts = _evaluator.evaluate(

@@ -19,6 +19,8 @@ Practical measures for Flutter + Supabase + ESP32. Avoid over-engineering; do th
 ### Authentication
 - Prefer Supabase Auth when multi-user is required.
 - Decide early: multi-farmer accounts vs single-user prototype — RLS depends on this.
+- **Signup password:** at least 8 characters, plus a letter, a number, and a symbol. Enforced in the app (`AppValidators`) before `signUp`. Login does **not** re-check strength (existing accounts may predate the rule).
+- **Signup email:** must look like `name@domain.tld` (not merely contain `@` and `.`).
 
 ### Device (ESP32)
 - Device must not use **service_role** (that key bypasses RLS and can drop data).

@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/validation/app_validators.dart';
 import '../data/auth_repository.dart';
 import '../logic/auth_controller.dart';
 import '../../../shared/navigation/app_page_routes.dart';
@@ -85,7 +86,7 @@ class _LoginPageState extends State<LoginPage> {
               hint: 'farmer@example.com',
               icon: Icons.mail_outline,
               keyboardType: TextInputType.emailAddress,
-              validator: _validateEmail,
+              validator: AppValidators.email,
             ),
             const SizedBox(height: 20),
             AuthTextField(
@@ -97,7 +98,7 @@ class _LoginPageState extends State<LoginPage> {
               onToggleVisibility: () {
                 setState(() => _obscurePassword = !_obscurePassword);
               },
-              validator: _validatePassword,
+              validator: AppValidators.loginPassword,
             ),
             const SizedBox(height: 20),
             AuthErrorBanner(message: _authController.errorMessage),
@@ -149,21 +150,5 @@ class _LoginPageState extends State<LoginPage> {
         ],
       ),
     );
-  }
-
-  /// Validates that the farmer entered a plausible email address.
-  String? _validateEmail(String? value) {
-    final email = value?.trim() ?? '';
-    if (email.isEmpty) return 'Email is required.';
-    if (!email.contains('@') || !email.contains('.')) {
-      return 'Enter a valid email address.';
-    }
-    return null;
-  }
-
-  /// Validates the required login password.
-  String? _validatePassword(String? value) {
-    if ((value ?? '').isEmpty) return 'Password is required.';
-    return null;
   }
 }

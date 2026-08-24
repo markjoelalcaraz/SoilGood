@@ -13,7 +13,9 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const model = "llama-3.3-70b-versatile";
+// Groq shut down llama-3.3-70b-versatile on 2026-08-16; this is their
+// recommended replacement and it keeps JSON-mode support.
+const model = "openai/gpt-oss-120b";
 const jobs = new Set(["home", "analytics", "crops.care"]);
 
 function jsonResponse(body: unknown, status = 200): Response {

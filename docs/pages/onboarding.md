@@ -28,7 +28,7 @@
 Get a new farmer from zero to a ready account: create login, capture name, set the farm location (for weather), and link their ESP32 — without overwhelming them in one giant form.
 
 ## Flow overview (split into steps)
-1. **Signup** — email + password + confirm-password UI validation.
+1. **Signup** — email format, password strength (8+ chars, letter, number, symbol), confirm-password match. Live checklist under the password field. Login only checks that email/password are present and email looks valid (does not re-check strength).
 2. **Onboarding** (separate screens after first login):
    1. Profile — first name, last name, address (barangay / municipality / province)
    2. Farm location — GPS auto-detect + **draggable map pin** to correct

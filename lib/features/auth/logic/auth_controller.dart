@@ -7,6 +7,7 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/validation/app_validators.dart';
 import '../data/auth_repository.dart';
 
 /// Owns auth form state and exposes visible failures to the UI.
@@ -25,6 +26,13 @@ class AuthController extends ChangeNotifier {
 
   /// Signs up and returns true only after Supabase confirms success.
   Future<bool> signUp({required String email, required String password}) async {
+    final emailError = AppValidators.email(email);
+    final passwordError = AppValidators.signupPassword(password);
+    if (emailError != null || passwordError != null) {
+      errorMessage = emailError ?? passwordError;
+      notifyListeners();
+      return false;
+    }
     return _run(() => _repository.signUp(email: email, password: password));
   }
 

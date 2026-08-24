@@ -51,6 +51,7 @@ class CropCatalogEntry {
     this.salinityMax,
     this.growingSeason,
     this.notes,
+    this.rangeMeta,
   });
 
   final String id;
@@ -76,6 +77,9 @@ class CropCatalogEntry {
   final double? salinityMax;
   final String? growingSeason;
   final String? notes;
+
+  /// Honesty labels: moisture_basis, ec_basis, hydro_class, etc.
+  final Map<String, dynamic>? rangeMeta;
 
   factory CropCatalogEntry.fromJson(Map<String, dynamic> json) {
     final phasesRaw = json['phases'];
@@ -112,6 +116,9 @@ class CropCatalogEntry {
       salinityMax: (json['salinity_max'] as num?)?.toDouble(),
       growingSeason: json['growing_season'] as String?,
       notes: json['notes'] as String?,
+      rangeMeta: json['range_meta'] is Map
+          ? Map<String, dynamic>.from(json['range_meta'] as Map)
+          : null,
     );
   }
 }

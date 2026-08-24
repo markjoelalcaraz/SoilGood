@@ -1,16 +1,64 @@
 {
-  "prompt_version": "insights_v1",
+  "prompt_version": "insights_v4",
   "send_to_model": ["voice", "prompts.<page>", "bands", "irrigation", "output"],
-  "never_send": ["meta", "sensor_valid", "regen", "cache_hours"],
+  "never_send": ["meta", "sensor_valid", "regen", "cache_hours", "extremes"],
   "meta": {
     "app": "SoilGood",
     "audience": "Philippine smallholder farmers",
-    "usage": "Flutter loads this file locally to classify bands (0 Groq tokens). The Edge Function attaches a page slice before calling Groq. Never send this whole file or docs/markdown to the model."
+    "usage": "Flutter loads this file locally to classify bands (0 Groq tokens). The Edge Function attaches a page slice before calling Groq. Never send this whole file or docs/markdown to the model. Crop-specific ranges live in public.crops — see docs/context/CROP_RANGES.md."
   },
   "voice": {
-    "style": "practical plain English",
+    "style": "caring neighbor farmer, simple English",
+    "language": "en",
     "no_markdown": true,
-    "no_invented_numbers": true
+    "no_emoji": true,
+    "no_invented_numbers": true,
+    "no_em_dash": true,
+    "tone": [
+      "Warm, calm, and helpful by default. Sound like a real person who cares about the farm.",
+      "Use short common words. Prefer: dry, wet, low, high, okay, water, rain, fertilizer, soil, crop, wait, check, urgent, critically.",
+      "Each tip needs a short why and a clear next step. Description is usually 2 to 4 short sentences. Do not use cold one-line tips alone.",
+      "Do not sound like a chatbot or lab report.",
+      "When any fact band starts with critical_ (critical_dry, critical_wet, critical_low, critical_high), use urgent wording for the matching tip only: say urgent or critically, do not wait, water today or do not water. priority must be high. Still simple English — no disaster panic."
+    ],
+    "avoid_words": [
+      "advise",
+      "parameters",
+      "suboptimal",
+      "anomalies",
+      "indicate",
+      "consider",
+      "suite",
+      "profile",
+      "vegetative",
+      "irrigation",
+      "moisture",
+      "precipitation",
+      "As an AI",
+      "I'd be happy to",
+      "Let's dive in",
+      "In conclusion",
+      "local farm officer",
+      "extension",
+      "DA office",
+      "agriculture office",
+      "disaster",
+      "crop will die"
+    ],
+    "prefer_words": {
+      "irrigate": "water",
+      "irrigation": "watering",
+      "moisture": "soil water",
+      "nutrients": "plant food",
+      "vegetative growth": "this growing stage",
+      "stress": "get weak"
+    },
+    "never_refer": [
+      "local farm officer",
+      "extension",
+      "DA office",
+      "agriculture office"
+    ]
   },
   "output": {
     "overview_sentences": [2, 4],
@@ -20,16 +68,29 @@
   },
   "prompts": {
     "home": {
-      "job": "One urgent action for TODAY from the latest soil row + short forecast. Water, wait, or check the sensor.",
-      "max_recommendations": 1,
-      "allowed_types": ["irrigation"],
+      "job": "Three short tips for today: Condition, Water today, and Nutrients when a crop is present.",
+      "max_recommendations": 3,
+      "allowed_types": ["soil_management", "irrigation", "nutrient"],
       "rules": [
-        "Use classified bands already in the user payload. Do not restate unused thresholds.",
-        "If rain_prob_today or rain_prob_tomorrow >= irrigation.skip_if_rain_prob_pct_gte and moisture is not dry, prefer wait.",
-        "If moisture band is dry and rain is below that skip threshold, recommend irrigate.",
-        "If moisture band is wet, do not irrigate.",
-        "If validation is error/warning, the action is check the sensor — not a farm schedule.",
-        "Never give a clock time. Never use history, monthly averages, or crop catalog."
+        "Follow voice: simple English, caring tone by default, 2 to 4 short sentences in description. Title short. recommended_action a few plain words.",
+        "Return exactly one soil_management, one irrigation, and one nutrient tip when crop and phase are in the user payload.",
+        "If no crop is in the payload, return only soil_management and irrigation. Do not invent nutrient or fertilizer advice.",
+        "Condition (soil_management): say what is wrong with the soil or that soil looks fine. Talk about soil and weather only when the reading is valid.",
+        "Mention sensor, probe, or bad reading ONLY when validation is error or warning or the reading looks broken. If the reading is fine, never mention the sensor, even to say it is okay.",
+        "Water today (irrigation): recommended_action is one of: water, wait, check sensor.",
+        "If rain_prob_today or rain_prob_tomorrow >= irrigation.skip_if_rain_prob_pct_gte and moisture is not dry and not critical_dry, prefer wait.",
+        "If moisture band is dry and rain is below that skip threshold, recommend water. priority medium.",
+        "If moisture band is critical_dry, Water today must priority high, recommended_action water (unless sensor invalid), and use urgent words: critically dry, water today, do not wait. Still recommend water even if rain is likely; rain is secondary.",
+        "If moisture band is wet, do not recommend water. priority medium.",
+        "If moisture band is critical_wet, Water today priority high, recommended_action wait, urgent: do not water, soil water is critically high.",
+        "If temp_band is critical_low or critical_high, Condition must priority high with urgent wording for heat or cold. Do not invent numbers.",
+        "If temp_band or ph_band or ec_band is low or high (not critical), Condition priority medium, firm but calm.",
+        "If Condition bands are all ok, Condition priority low or medium, calm soil looks fine.",
+        "Escalate only the matching card: critical moisture → Water today; critical temp/pH/EC/salt → Condition. Do not make all three tips critical unless each has a critical reason.",
+        "If Condition is check sensor, Water and Nutrients must also say check sensor and must not give a farm schedule.",
+        "Nutrients: use crop name and growing stage from the payload. No exact kg per hectare. No clock times. No referral to any person or office. Low N/P/K only — do not invent too-high nutrient panic.",
+        "Do not repeat the same paragraph on all three cards.",
+        "No em dash. No markdown. No chatbot phrases. Never give a clock time. Never invent soil numbers. Never use history or monthly averages."
       ]
     },
     "analytics": {
@@ -37,11 +98,13 @@
       "max_recommendations": 4,
       "allowed_types": ["irrigation", "nutrient", "soil_management", "crop_suitability"],
       "rules": [
+        "Follow voice: simple English, caring tone.",
         "Base advice only on provided daily averages. Null field = say missing; do not invent.",
         "Irrigation type = dry-spell PATTERN over the window. Never 'water tomorrow 6:00 AM'.",
         "Include at least one nutrient or soil_management action.",
         "crop_suitability only if a crop name is given or history clearly suggests a fit.",
-        "Do not copy Home's same-day irrigate/wait order."
+        "Do not copy Home's same-day water/wait order.",
+        "Never refer the farmer to a farm officer or office."
       ]
     },
     "crops": {
@@ -54,14 +117,17 @@
         ]
       },
       "care": {
-        "job": "How to maintain this selected crop and soil in the current cultivation phase. Irrigation, fertilizer, and soil care — not a catalog score.",
+        "job": "How to maintain this selected crop and soil in the current cultivation phase. Watering, fertilizer, and soil care — not a catalog score.",
         "max_recommendations": 3,
         "allowed_types": ["irrigation", "nutrient", "soil_management"],
         "rules": [
+          "Follow voice: simple English, caring tone by default.",
           "Use classified bands, crop name, and current phase already in the user payload.",
-          "Irrigation and nutrient advice must fit this crop and phase, not Home's same-day water/wait line.",
+          "If any band starts with critical_, use urgent wording and priority high on the matching tip.",
+          "Watering and nutrient advice must fit this crop and phase, not Home's same-day water/wait line.",
           "Never give a clock time. Never invent soil numbers. Never score the crops catalog.",
-          "If validation is error/warning, say check the sensor before changing irrigation or fertilizer."
+          "If validation is error/warning, say check the sensor before changing watering or fertilizer.",
+          "Never refer the farmer to a farm officer or office."
         ]
       }
     }
@@ -77,14 +143,30 @@
     "k_mgkg": [0, 800]
   },
   "bands": {
-    "moisture_pct": { "dry_lt": 30, "wet_gt": 85 },
+    "moisture_pct": {
+      "dry_lt": 30,
+      "wet_gt": 85,
+      "critical_dry_lt": 15,
+      "critical_wet_gt": 95
+    },
     "ph": { "low_lt": 5.5, "high_gt": 7.5 },
-    "soil_temp_c": { "low_lt": 15, "high_gt": 35 },
+    "soil_temp_c": {
+      "low_lt": 15,
+      "high_gt": 35,
+      "critical_low_lt": 10,
+      "critical_high_gt": 42
+    },
     "ec_ds_m": { "low_lt": 0.2, "high_gt": 2.0 },
     "salinity_ppt": { "high_gt": 4 },
     "n_mgkg": { "low_lt": 45 },
     "p_mgkg": { "low_lt": 20 },
     "k_mgkg": { "low_lt": 80 }
+  },
+  "extremes": {
+    "moisture_critical_dry_lt": 15,
+    "moisture_critical_wet_gt": 95,
+    "temp_critical_low_lt": 10,
+    "temp_critical_high_gt": 42
   },
   "irrigation": {
     "dry_moisture_pct": 30,
@@ -92,7 +174,7 @@
     "skip_if_rain_prob_pct_gte": 60
   },
   "regen": {
-    "home": "Call the model only if no saved row, soil_reading_id changed, or valid_until passed.",
+    "home": "Call the model only if no saved row, story fingerprint (bands + rain advice + crop/phase + crop range token) changed, valid_until passed, or prompt version changed. A new soil_reading_id alone is not enough when the story is the same.",
     "analytics": "Call the model only if no row for that period_start+period_end, valid_until passed, or a newer daily bucket exists.",
     "crops": "Call the model only if no saved row for this planting, soil_reading_id changed, valid_until passed, phase changed, or prompt version changed."
   },

@@ -19,6 +19,27 @@ import '../notifications/logic/notification_scope.dart';
 import '../notifications/presentation/notifications_page.dart';
 import '../profile/presentation/profile_page.dart';
 
+/// Lets feature pages jump to another shell tab (e.g. Home → Crops CTA).
+class ShellScope extends InheritedWidget {
+  const ShellScope({
+    required this.selectTab,
+    required super.child,
+    super.key,
+  });
+
+  /// Bottom-nav indices: 0 Home, 1 Analytics, 2 Crops, 3 Profile.
+  final void Function(int index) selectTab;
+
+  /// Nearest shell scope, or null outside [AppShell].
+  static ShellScope? maybeOf(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<ShellScope>();
+  }
+
+  @override
+  bool updateShouldNotify(ShellScope oldWidget) =>
+      selectTab != oldWidget.selectTab;
+}
+
 /// Persistent chrome: bottom nav stays; only the content area swaps.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -60,54 +81,58 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return NotificationScope(
       controller: _notifications,
-      child: ListenableBuilder(
-        listenable: _notifications,
-        builder: (context, _) {
-          return Scaffold(
-            body: IndexedStack(index: _index, children: _pages),
-            bottomNavigationBar: NavigationBar(
-              selectedIndex: _index,
-              onDestinationSelected: _onTabSelected,
-              backgroundColor: AppColors.surface,
-              indicatorColor: AppColors.primary,
-              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-              destinations: [
-                NavigationDestination(
-                  icon: _tabIcon(
-                    Icons.home_outlined,
-                    unread: _notifications.tabHasUnread(0),
+      child: ShellScope(
+        selectTab: _onTabSelected,
+        child: ListenableBuilder(
+          listenable: _notifications,
+          builder: (context, _) {
+            return Scaffold(
+              body: IndexedStack(index: _index, children: _pages),
+              bottomNavigationBar: NavigationBar(
+                selectedIndex: _index,
+                onDestinationSelected: _onTabSelected,
+                backgroundColor: AppColors.surface,
+                indicatorColor: AppColors.primary,
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                destinations: [
+                  NavigationDestination(
+                    icon: _tabIcon(
+                      Icons.home_outlined,
+                      unread: _notifications.tabHasUnread(0),
+                    ),
+                    selectedIcon: const Icon(Icons.home, color: Colors.white),
+                    label: 'Home',
                   ),
-                  selectedIcon: const Icon(Icons.home, color: Colors.white),
-                  label: 'Home',
-                ),
-                NavigationDestination(
-                  icon: _tabIcon(
-                    Icons.insights_outlined,
-                    unread: _notifications.tabHasUnread(1),
+                  NavigationDestination(
+                    icon: _tabIcon(
+                      Icons.insights_outlined,
+                      unread: _notifications.tabHasUnread(1),
+                    ),
+                    selectedIcon:
+                        const Icon(Icons.insights, color: Colors.white),
+                    label: 'Analytics',
                   ),
-                  selectedIcon: const Icon(Icons.insights, color: Colors.white),
-                  label: 'Analytics',
-                ),
-                NavigationDestination(
-                  icon: _tabIcon(
-                    Icons.eco_outlined,
-                    unread: _notifications.tabHasUnread(2),
+                  NavigationDestination(
+                    icon: _tabIcon(
+                      Icons.eco_outlined,
+                      unread: _notifications.tabHasUnread(2),
+                    ),
+                    selectedIcon: const Icon(Icons.eco, color: Colors.white),
+                    label: 'Crops',
                   ),
-                  selectedIcon: const Icon(Icons.eco, color: Colors.white),
-                  label: 'Crops',
-                ),
-                NavigationDestination(
-                  icon: _tabIcon(
-                    Icons.person_outline,
-                    unread: _notifications.tabHasUnread(3),
+                  NavigationDestination(
+                    icon: _tabIcon(
+                      Icons.person_outline,
+                      unread: _notifications.tabHasUnread(3),
+                    ),
+                    selectedIcon: const Icon(Icons.person, color: Colors.white),
+                    label: 'Profile',
                   ),
-                  selectedIcon: const Icon(Icons.person, color: Colors.white),
-                  label: 'Profile',
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

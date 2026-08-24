@@ -1,8 +1,9 @@
 /// Pure classifier: soil + weather facts → farm alert drafts (no I/O).
 ///
-/// Uses the same `insights.json` bands Home AI already classified. One draft
-/// per type; the repository then caps that type at once per Manila calendar
-/// day. Called from [NotificationController] when a new reading arrives.
+/// Uses the same crop-aware / universal bands Home AI already classified. One
+/// draft per type; the repository then caps that type at once per Manila
+/// calendar day. Critical moisture/temp/pH/EC/salt → urgent titles. Called
+/// from [NotificationController] when a new reading arrives.
 library;
 
 import '../../analytics/logic/manila_time.dart';
@@ -106,6 +107,34 @@ class NotificationEvaluator {
     final moisture = _fmt(reading.moisturePercent, suffix: '%');
     final rain = (facts['rain_prob_today'] as num?)?.toDouble();
 
+    if (band == 'critical_dry') {
+      return NotificationDraft(
+        farmId: farmId,
+        type: FarmNotificationType.irrigation,
+        severity: FarmNotificationSeverity.urgent,
+        title: 'Soil is critically dry — water today',
+        body:
+            'Moisture is critically low${moisture == null ? '' : ' ($moisture)'}. '
+            'Do not wait. Water today.',
+        dedupeKey: 'irrigation:$ymd',
+        soilReadingId: reading.id,
+      );
+    }
+
+    if (band == 'critical_wet') {
+      return NotificationDraft(
+        farmId: farmId,
+        type: FarmNotificationType.irrigation,
+        severity: FarmNotificationSeverity.urgent,
+        title: 'Soil water is critically high',
+        body:
+            'Moisture is critically high${moisture == null ? '' : ' ($moisture)'}. '
+            'Do not water. Check drainage.',
+        dedupeKey: 'irrigation:$ymd',
+        soilReadingId: reading.id,
+      );
+    }
+
     if (band == 'dry' && rain != null && rain >= skipIfRainProbPctGte) {
       return NotificationDraft(
         farmId: farmId,
@@ -134,6 +163,7 @@ class NotificationEvaluator {
       );
     }
 
+    // wet (warn)
     return NotificationDraft(
       farmId: farmId,
       type: FarmNotificationType.irrigation,
@@ -178,50 +208,73 @@ class NotificationEvaluator {
     required String ymd,
   }) {
     final issues = <String>[];
-    _addBandIssue(
+    var anyCritical = false;
+
+    anyCritical |= _addBandIssue(
       issues,
       band: facts['ph_band'] as String?,
       label: 'pH',
       value: _fmt(reading.ph),
     );
-    _addBandIssue(
+    anyCritical |= _addBandIssue(
       issues,
       band: facts['temp_band'] as String?,
       label: 'Soil temperature',
       value: _fmt(reading.soilTemperatureC, suffix: '°C'),
     );
-    _addBandIssue(
+    anyCritical |= _addBandIssue(
       issues,
       band: facts['ec_band'] as String?,
       label: 'EC',
       value: _fmt(reading.ec),
     );
-    if (facts['salinity_band'] == 'high') {
+
+    final saltBand = facts['salinity_band'] as String?;
+    if (saltBand == 'high' || saltBand == 'critical_high') {
       final salt = _fmt(reading.salinity, suffix: ' ppt');
-      issues.add('salinity is high${salt == null ? '' : ' ($salt)'}');
+      if (saltBand == 'critical_high') {
+        anyCritical = true;
+        issues.add('salinity is critically high${salt == null ? '' : ' ($salt)'}');
+      } else {
+        issues.add('salinity is high${salt == null ? '' : ' ($salt)'}');
+      }
     }
+
     if (issues.isEmpty) return null;
 
     return NotificationDraft(
       farmId: farmId,
       type: FarmNotificationType.soilAlert,
-      severity: FarmNotificationSeverity.warning,
-      title: 'Soil needs attention',
+      severity: anyCritical
+          ? FarmNotificationSeverity.urgent
+          : FarmNotificationSeverity.warning,
+      title: anyCritical
+          ? 'Urgent: soil needs attention today'
+          : 'Soil needs attention',
       body: '${_joinList(issues)}. Check the field before adding water or fertilizer.',
       dedupeKey: 'soil_alert:$ymd',
       soilReadingId: reading.id,
     );
   }
 
-  void _addBandIssue(
+  /// Adds an issue for warn/critical bands. Returns true if band was critical.
+  bool _addBandIssue(
     List<String> issues, {
     required String? band,
     required String label,
     required String? value,
   }) {
-    if (band != 'low' && band != 'high') return;
+    if (band == null || band == 'ok' || band == 'missing') return false;
     final shown = value == null ? '' : ' ($value)';
-    issues.add('$label is $band$shown');
+    if (band.startsWith('critical_')) {
+      final side = band.contains('low') ? 'critically low' : 'critically high';
+      issues.add('$label is $side$shown');
+      return true;
+    }
+    if (band == 'low' || band == 'high') {
+      issues.add('$label is $band$shown');
+    }
+    return false;
   }
 
   String _manilaYmd(DateTime now) {

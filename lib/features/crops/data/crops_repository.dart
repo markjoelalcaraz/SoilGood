@@ -3,6 +3,8 @@
 /// Crops tab data layer only. Match scores and phase math live in `logic/`.
 library;
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../core/supabase/supabase_bootstrap.dart';
 import '../../analytics/logic/manila_time.dart';
 import 'crop_catalog.dart';
@@ -34,7 +36,8 @@ class CropsRepository {
     return Planting.fromJson(row);
   }
 
-  /// Inserts today’s planting. Fails if [crop] has no `days_to_maturity`.
+  /// Inserts today’s planting. Fails if [crop] has no `days_to_maturity`,
+  /// or if the farm already has an active planting (DB unique index).
   Future<Planting> selectCrop({
     required String farmId,
     required CropCatalogEntry crop,
@@ -51,26 +54,36 @@ class CropsRepository {
     final plantedStr = _ymd(today);
     final harvestStr = _ymd(harvest);
 
-    final inserted = await supabase
-        .from('plantings')
-        .insert({
-          'farm_id': farmId,
-          'crop_id': crop.id,
-          'planted_at': plantedStr,
-          'expected_harvest_at': harvestStr,
-          'status': 'active',
-        })
-        .select('*, crops(*)')
-        .single();
+    try {
+      final inserted = await supabase
+          .from('plantings')
+          .insert({
+            'farm_id': farmId,
+            'crop_id': crop.id,
+            'planted_at': plantedStr,
+            'expected_harvest_at': harvestStr,
+            'status': 'active',
+          })
+          .select('*, crops(*)')
+          .single();
 
-    return Planting.fromJson(inserted);
+      return Planting.fromJson(inserted);
+    } on PostgrestException catch (e) {
+      // 23505 = unique_violation (plantings_one_active_per_farm_uidx).
+      if (e.code == '23505') {
+        throw StateError(
+          'This farm already has an active crop. Change crop first, then select again.',
+        );
+      }
+      rethrow;
+    }
   }
 
-  /// Ends the active planting so the suitable-crop list can show again.
+  /// Ends the active planting (Change crop) so the suitable-crop list can show again.
   Future<void> endPlanting(String plantingId) async {
     await supabase
         .from('plantings')
-        .update({'status': 'harvested'})
+        .update({'status': 'replaced'})
         .eq('id', plantingId);
   }
 

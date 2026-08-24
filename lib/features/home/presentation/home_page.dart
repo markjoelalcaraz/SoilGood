@@ -1,13 +1,18 @@
 /// Home feature page shown inside the app shell content area (first bottom-nav tab).
 ///
 /// This is the farmer's at-a-glance dashboard after login/onboarding: live soil
-/// readings from Supabase, Open-Meteo weather for their farm pin, and one Groq
-/// action for today. Not a pushed route — the bottom nav stays mounted.
+/// readings from Supabase, Open-Meteo weather for their farm pin, and three Groq
+/// tips for today (Condition, Water today, Nutrients). Realtime soil updates
+/// also recheck Home AI (fingerprint gate — Groq only when the story changed).
+/// Not a pushed route — the bottom nav stays mounted.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/ai/crop_band_classify.dart';
 import '../../../core/ai/groq_chat_client.dart';
 import '../../../core/ai/insights_config.dart';
 import '../../../core/ai/saved_assessment.dart';
@@ -16,6 +21,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/data/refresh_timeout.dart';
 import '../../../shared/widgets/app_refresh_scroll.dart';
 import '../../../shared/widgets/ui_primitives.dart';
+import '../../crops/data/crops_repository.dart';
+import '../../crops/logic/crop_timeline.dart';
 import '../../shell/app_shell.dart';
 import '../../weather/data/farm_location_repository.dart';
 import '../../weather/data/open_meteo_weather_service.dart';
@@ -24,8 +31,9 @@ import '../data/soil_reading.dart';
 import '../data/soil_readings_repository.dart';
 import '../logic/home_ai_client.dart';
 import '../logic/home_ai_regen.dart';
+import '../logic/home_ai_story.dart';
 
-/// Home dashboard — live soil, Open-Meteo weather, and one Groq action for today.
+/// Home dashboard — live soil, weather, and three Groq tips for today.
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -36,11 +44,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final _repo = SoilReadingsRepository();
   final _farmRepo = FarmLocationRepository();
+  final _cropsRepo = CropsRepository();
   final _weatherService = OpenMeteoWeatherService();
   final _aiRepo = SavedAssessmentRepository();
   final _homeAi = HomeAiClient();
 
-  late final Stream<SoilReading?> _stream;
+  StreamSubscription<SoilReading?>? _soilSub;
+  SoilReading? _streamReading;
   SoilReading? _cached;
   Object? _loadError;
   bool _soilFetchDone = false;
@@ -52,12 +62,32 @@ class _HomePageState extends State<HomePage> {
   SavedAssessment? _assessment;
   Object? _aiError;
   bool _aiLoading = false;
+  bool _hasActiveCrop = false;
+
+  /// Last soil row id that already triggered an AI recheck (Realtime path).
+  String? _lastRealtimeAiSoilId;
+
+  /// Coalesce overlapping open/pull/Realtime AI loads into one follow-up.
+  bool _aiBusy = false;
+  bool _aiQueued = false;
 
   @override
   void initState() {
     super.initState();
-    _stream = _repo.watchLatest();
+    _soilSub = _repo.watchLatest().listen(
+      _onSoilStreamEvent,
+      onError: (Object e) {
+        if (!mounted) return;
+        setState(() => _loadError = e);
+      },
+    );
     _start();
+  }
+
+  @override
+  void dispose() {
+    unawaited(_soilSub?.cancel() ?? Future.value());
+    super.dispose();
   }
 
   /// Soil + weather first (cards can paint), then cheap-load / regen Home AI.
@@ -67,6 +97,27 @@ class _HomePageState extends State<HomePage> {
       _loadWeather(showSpinner: true),
     ]);
     await _loadHomeAi();
+  }
+
+  /// Realtime soil: update cards, then recheck AI only when the reading id is new.
+  void _onSoilStreamEvent(SoilReading? reading) {
+    if (!mounted) return;
+
+    setState(() {
+      _streamReading = reading;
+      if (reading != null) {
+        _cached = _preferLatest(reading, _cached);
+        _soilFetchDone = true;
+        _loadError = null;
+      }
+    });
+
+    final latest = _preferLatest(reading, _cached);
+    if (latest == null) return;
+    if (latest.id == _lastRealtimeAiSoilId) return;
+
+    _lastRealtimeAiSoilId = latest.id;
+    unawaited(_loadHomeAi());
   }
 
   /// Newer of stream vs pull-fetched cache so pull is not ignored.
@@ -187,20 +238,44 @@ class _HomePageState extends State<HomePage> {
     await _loadHomeAi();
   }
 
-  /// Loads saved Home AI; calls Groq only when regen rules say so.
+  /// Loads saved Home AI; calls Groq only when the story fingerprint says so.
+  ///
+  /// Overlapping open / pull / Realtime calls coalesce so at most one follow-up
+  /// run happens after the current one finishes.
   Future<void> _loadHomeAi() async {
     if (!mounted) return;
-    final reading = _cached;
+    if (_aiBusy) {
+      _aiQueued = true;
+      return;
+    }
+    _aiBusy = true;
+    try {
+      do {
+        _aiQueued = false;
+        await _loadHomeAiOnce();
+      } while (_aiQueued && mounted);
+    } finally {
+      _aiBusy = false;
+    }
+  }
+
+  /// One Home AI cheap-load / regen pass against the current `_cached` reading.
+  Future<void> _loadHomeAiOnce() async {
+    if (!mounted) return;
+    final reading = _preferLatest(_streamReading, _cached);
     if (reading == null) {
       if (!mounted) return;
       setState(() {
         _assessment = null;
         _aiError = null;
         _aiLoading = false;
+        _hasActiveCrop = false;
       });
       return;
     }
 
+    _lastRealtimeAiSoilId = reading.id;
+    // Soft load: keep last tips on screen when we already have an assessment.
     setState(() => _aiLoading = true);
 
     try {
@@ -209,18 +284,40 @@ class _HomePageState extends State<HomePage> {
         throw StateError('No farm found. Finish onboarding first.');
       }
       final insights = await InsightsConfig.load();
+      final planting = await withRefreshTimeout(
+        _cropsRepo.fetchActivePlanting(farmId),
+      );
+      final timeline = planting == null ? null : timelineFor(planting);
+      final hasCrop = planting != null;
+      final cropName = planting?.crop.name;
+      final phaseId = timeline?.current.id ?? (hasCrop ? 'unknown' : null);
+      final phaseLabel = timeline?.current.label ?? (hasCrop ? 'growing' : null);
+      final cropRanges = planting == null
+          ? null
+          : CropBandRanges.fromCrop(planting.crop, phaseId: phaseId);
+
+      final fingerprint = buildHomeStoryFingerprint(
+        insights: insights,
+        reading: reading,
+        weather: _weather,
+        cropName: hasCrop ? cropName : null,
+        phaseId: hasCrop ? phaseId : null,
+        cropRanges: cropRanges,
+      );
+
       final saved = await withRefreshTimeout(
         _aiRepo.fetchLatest(farmId: farmId, kind: 'home'),
       );
 
       if (!shouldRegenHomeAi(
         saved: saved,
-        soilReadingId: reading.id,
         promptVersion: insights.promptVersion,
+        currentFingerprint: fingerprint,
       )) {
         if (!mounted) return;
         setState(() {
           _assessment = saved;
+          _hasActiveCrop = hasCrop;
           _aiError = null;
           _aiLoading = false;
         });
@@ -231,16 +328,25 @@ class _HomePageState extends State<HomePage> {
         insights: insights,
         reading: reading,
         weather: _weather,
+        cropName: hasCrop ? cropName : null,
+        phaseId: hasCrop ? phaseId : null,
+        phaseLabel: hasCrop ? phaseLabel : null,
+        cropRanges: cropRanges,
       );
       final validUntil = DateTime.now().add(
         Duration(hours: insights.homeCacheHours),
+      );
+      final stampedOverview = encodeHomeOverviewWithFingerprint(
+        fingerprint: fingerprint,
+        overview: generated.overview,
       );
       final savedNew = await withRefreshTimeout(
         _aiRepo.save(
           farmId: farmId,
           kind: 'home',
+          plantingId: hasCrop ? planting.id : null,
           soilReadingId: reading.id,
-          overview: generated.overview,
+          overview: stampedOverview,
           soilHealthScore: generated.soilHealthScore,
           modelName: kGroqModel,
           promptVersion: insights.promptVersion,
@@ -251,6 +357,7 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
       setState(() {
         _assessment = savedNew;
+        _hasActiveCrop = hasCrop;
         _aiError = null;
         _aiLoading = false;
       });
@@ -265,71 +372,66 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final reading = _preferLatest(_streamReading, _cached);
+    final soilError = _loadError;
+    final waitingFirstSoil =
+        !_soilFetchDone && reading == null && soilError == null;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const SoilGoodTopBar(title: 'SoilGood'),
-      body: StreamBuilder<SoilReading?>(
-        stream: _stream,
-        initialData: _cached,
-        builder: (context, snapshot) {
-          final reading = _preferLatest(snapshot.data, _cached);
-          final soilError = snapshot.error ?? _loadError;
-          final waitingFirstSoil =
-              !_soilFetchDone && reading == null && soilError == null;
-
-          return AppRefreshScroll(
-            onRefresh: _reloadAll,
-            children: [
-              if (soilError != null) ...[
-                _SourceErrorCard(
-                  message: 'Could not load soil readings:\n$soilError',
+      body: AppRefreshScroll(
+        onRefresh: _reloadAll,
+        children: [
+          if (soilError != null) ...[
+            _SourceErrorCard(
+              message: 'Could not load soil readings:\n$soilError',
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (waitingFirstSoil)
+            const _HomeFirstLoadSkeleton()
+          else ...[
+            _OverallConditionBanner(reading: reading),
+            const SizedBox(height: 24),
+            const SectionHeader(
+              title: 'Sensor Findings',
+              icon: Icons.sensors,
+            ),
+            const SizedBox(height: 12),
+            if (reading == null)
+              const SoftCard(
+                child: Text(
+                  'No soil readings yet.\nLink a device in onboarding and wait for the ESP32 (or insert a test row in Supabase).',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    height: 1.5,
+                  ),
                 ),
-                const SizedBox(height: 12),
-              ],
-              if (waitingFirstSoil)
-                const _HomeFirstLoadSkeleton()
-              else ...[
-                _OverallConditionBanner(reading: reading),
-                const SizedBox(height: 24),
-                const SectionHeader(
-                  title: 'Sensor Findings',
-                  icon: Icons.sensors,
-                ),
-                const SizedBox(height: 12),
-                if (reading == null)
-                  const SoftCard(
-                    child: Text(
-                      'No soil readings yet.\nLink a device in onboarding and wait for the ESP32 (or insert a test row in Supabase).',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        height: 1.5,
-                      ),
-                    ),
-                  )
-                else
-                  _SensorGrid(reading: reading),
-              ],
-              const SizedBox(height: 24),
-              const SectionHeader(
-                title: 'Forecast',
-                icon: Icons.wb_cloudy,
-              ),
-              const SizedBox(height: 12),
-              _ForecastCard(
-                weather: _weather,
-                loading: _weatherLoading && _weather == null,
-                error: _weatherError,
-              ),
-              const SizedBox(height: 24),
-              _AiAdviceCard(
-                assessment: _assessment,
-                loading: _aiLoading && _assessment == null,
-                error: _aiError,
-                hasReading: reading != null,
-              ),
-            ],
-          );
-        },
+              )
+            else
+              _SensorGrid(reading: reading),
+          ],
+          const SizedBox(height: 24),
+          const SectionHeader(
+            title: 'Forecast',
+            icon: Icons.wb_cloudy,
+          ),
+          const SizedBox(height: 12),
+          _ForecastCard(
+            weather: _weather,
+            loading: _weatherLoading && _weather == null,
+            error: _weatherError,
+          ),
+          const SizedBox(height: 24),
+          _HomeAiTipsSection(
+            assessment: _assessment,
+            loading: _aiLoading && _assessment == null,
+            error: _aiError,
+            hasReading: reading != null,
+            hasActiveCrop: _hasActiveCrop,
+          ),
+        ],
       ),
     );
   }
@@ -899,121 +1001,287 @@ class _DayForecast extends StatelessWidget {
   }
 }
 
-class _AiAdviceCard extends StatelessWidget {
-  const _AiAdviceCard({
+class _HomeAiTipsSection extends StatelessWidget {
+  const _HomeAiTipsSection({
     required this.assessment,
     required this.loading,
     required this.error,
     required this.hasReading,
+    required this.hasActiveCrop,
   });
 
   final SavedAssessment? assessment;
   final bool loading;
   final Object? error;
   final bool hasReading;
+  final bool hasActiveCrop;
 
   @override
   Widget build(BuildContext context) {
-    if (error != null) {
-      return _SourceErrorCard(message: 'Today’s AI tip unavailable:\n$error');
-    }
-    if (loading) {
-      return const SoftCard(
-        color: AppColors.surfaceMuted,
-        child: SizedBox(height: 120),
-      );
-    }
-    if (!hasReading) {
-      return const SoftCard(
-        color: AppColors.secondaryContainer,
-        padding: EdgeInsets.all(22),
-        child: Text(
-          'AI needs a soil reading before it can advise watering today.',
-          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionHeader(
+          title: 'Tips for today',
+          icon: Icons.psychology_outlined,
         ),
-      );
-    }
-    if (assessment == null) {
-      return const SizedBox.shrink();
-    }
+        const SizedBox(height: 12),
+        if (error != null)
+          _SourceErrorCard(message: 'Today’s tips unavailable:\n$error')
+        else if (loading)
+          const _HomeAiTipsSkeleton()
+        else if (!hasReading)
+          const SoftCard(
+            color: AppColors.secondaryContainer,
+            padding: EdgeInsets.all(22),
+            child: Text(
+              'Tips need a soil reading before they can help with watering and plant food today.',
+              style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+            ),
+          )
+        else if (assessment == null)
+          const SizedBox.shrink()
+        else ...[
+          _HomeTipCard(
+            slotLabel: 'Condition',
+            icon: Icons.grass,
+            rec: _recOf(assessment!, 'soil_management'),
+          ),
+          const SizedBox(height: 10),
+          _HomeTipCard(
+            slotLabel: 'Water today',
+            icon: Icons.water_drop,
+            rec: _recOf(assessment!, 'irrigation'),
+          ),
+          const SizedBox(height: 10),
+          if (hasActiveCrop)
+            _HomeTipCard(
+              slotLabel: 'Nutrients',
+              icon: Icons.science,
+              rec: _recOf(assessment!, 'nutrient'),
+            )
+          else
+            const _NutrientsCropCtaCard(),
+        ],
+      ],
+    );
+  }
 
-    final rec = assessment!.recommendations.isEmpty
-        ? null
-        : assessment!.recommendations.first;
+  /// Prefer exact type; fall back to list order for older 1-tip rows.
+  static AiRecommendation? _recOf(SavedAssessment a, String type) {
+    for (final r in a.recommendations) {
+      if (r.type == type) return r;
+    }
+    if (type == 'irrigation' && a.recommendations.length == 1) {
+      return a.recommendations.first;
+    }
+    return null;
+  }
+}
 
+/// One of the three Home tip slots.
+class _HomeTipCard extends StatelessWidget {
+  const _HomeTipCard({
+    required this.slotLabel,
+    required this.icon,
+    required this.rec,
+  });
+
+  final String slotLabel;
+  final IconData icon;
+  final AiRecommendation? rec;
+
+  @override
+  Widget build(BuildContext context) {
+    final high = rec?.priority == 'high';
     return SoftCard(
-      color: AppColors.secondaryContainer,
-      padding: const EdgeInsets.all(22),
-      child: Column(
+      color: high
+          ? AppColors.secondaryContainer
+          : AppColors.surface,
+      padding: const EdgeInsets.all(18),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: AppColors.secondary,
-                  shape: BoxShape.circle,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        slotLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                          color: AppColors.secondary,
+                        ),
+                      ),
+                    ),
+                    if (rec != null && rec!.recommendedAction.isNotEmpty)
+                      StatusChip(
+                        label: rec!.recommendedAction,
+                        tone: _actionTone(rec!.recommendedAction),
+                      ),
+                  ],
                 ),
-                child: const Icon(
-                  Icons.psychology,
-                  color: Colors.white,
-                  size: 16,
+                const SizedBox(height: 8),
+                Text(
+                  rec?.title ?? 'Pull to refresh',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.literata(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'AI RECOMMENDATION',
+                const SizedBox(height: 6),
+                Text(
+                  rec?.description.isNotEmpty == true
+                      ? rec!.description
+                      : 'No tip yet for this card. Pull the page to refresh.',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static StatusChipTone _actionTone(String action) {
+    final lower = action.toLowerCase();
+    if (lower.contains('wait') || lower.contains('hold') || lower.contains('okay') || lower.contains('fine') || lower.contains('no worry')) {
+      return StatusChipTone.good;
+    }
+    if (lower.contains('water') || lower.contains('irrigate') || lower.contains('fertilizer') || lower.contains('add')) {
+      return StatusChipTone.warn;
+    }
+    if (lower.contains('check') || lower.contains('sensor')) {
+      return StatusChipTone.neutral;
+    }
+    return StatusChipTone.neutral;
+  }
+}
+
+/// Nutrients slot when the farmer has not selected an active crop.
+class _NutrientsCropCtaCard extends StatelessWidget {
+  const _NutrientsCropCtaCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftCard(
+      color: AppColors.surfaceMuted,
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.science, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Nutrients',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
+                    letterSpacing: 0.6,
                     color: AppColors.secondary,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            rec?.title ?? 'Today',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.literata(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              height: 1.25,
-              color: AppColors.textPrimary,
+                const SizedBox(height: 8),
+                Text(
+                  'Tell us your crop',
+                  style: GoogleFonts.literata(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Add what you planted so fertilizer tips can match your crop and growing stage. Without that, we should not guess fertilizer for you.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () {
+                      ShellScope.maybeOf(context)?.selectTab(2);
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      minimumSize: const Size(48, 48),
+                      padding: EdgeInsets.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Open Crops',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            rec?.recommendedAction.isNotEmpty == true
-                ? rec!.recommendedAction
-                : assessment!.overview,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 15,
-              height: 1.55,
-            ),
-          ),
-          if (rec != null &&
-              rec.description.isNotEmpty &&
-              rec.recommendedAction.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              rec.description,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                height: 1.45,
-              ),
-            ),
-          ],
         ],
+      ),
+    );
+  }
+}
+
+/// First-open placeholders for the three tip cards.
+class _HomeAiTipsSkeleton extends StatelessWidget {
+  const _HomeAiTipsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(
+        3,
+        (i) => Padding(
+          padding: EdgeInsets.only(bottom: i == 2 ? 0 : 10),
+          child: const SoftCard(
+            color: AppColors.surfaceMuted,
+            child: SizedBox(height: 110),
+          ),
+        ),
       ),
     );
   }

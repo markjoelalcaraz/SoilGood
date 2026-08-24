@@ -7,12 +7,14 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/validation/app_validators.dart';
 import '../data/auth_repository.dart';
 import '../logic/auth_controller.dart';
 import 'widgets/auth_error_banner.dart';
 import 'widgets/auth_primary_button.dart';
 import 'widgets/auth_scaffold.dart';
 import 'widgets/auth_text_field.dart';
+import 'widgets/password_rules_checklist.dart';
 
 /// Account creation page that reuses the login page's visual language.
 class SignupPage extends StatefulWidget {
@@ -80,31 +82,39 @@ class _SignupPageState extends State<SignupPage> {
               hint: 'farmer@example.com',
               icon: Icons.mail_outline,
               keyboardType: TextInputType.emailAddress,
-              validator: _validateEmail,
+              validator: AppValidators.email,
             ),
             const SizedBox(height: 20),
             AuthTextField(
               controller: _passwordController,
               label: 'Password',
-              hint: 'At least 8 characters',
+              hint: '8+ characters, letter, number, symbol',
               icon: Icons.lock_outline,
               obscureText: _obscurePassword,
+              autofillHints: const [AutofillHints.newPassword],
+              onChanged: (_) => setState(() {}),
               onToggleVisibility: () {
                 setState(() => _obscurePassword = !_obscurePassword);
               },
-              validator: _validatePassword,
+              validator: AppValidators.signupPassword,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
+            PasswordRulesChecklist(password: _passwordController.text),
+            const SizedBox(height: 14),
             AuthTextField(
               controller: _confirmController,
               label: 'Confirm Password',
               hint: 'Repeat your password',
               icon: Icons.lock_reset_outlined,
               obscureText: _obscureConfirm,
+              autofillHints: const [AutofillHints.newPassword],
               onToggleVisibility: () {
                 setState(() => _obscureConfirm = !_obscureConfirm);
               },
-              validator: _validateConfirmation,
+              validator: (value) => AppValidators.confirmPassword(
+                value,
+                _passwordController.text,
+              ),
             ),
             const SizedBox(height: 20),
             AuthErrorBanner(message: _authController.errorMessage),
@@ -136,28 +146,5 @@ class _SignupPageState extends State<SignupPage> {
         ],
       ),
     );
-  }
-
-  /// Validates that the farmer entered a plausible email address.
-  String? _validateEmail(String? value) {
-    final email = value?.trim() ?? '';
-    if (email.isEmpty) return 'Email is required.';
-    if (!email.contains('@') || !email.contains('.')) {
-      return 'Enter a valid email address.';
-    }
-    return null;
-  }
-
-  /// Enforces the project's minimum password length.
-  String? _validatePassword(String? value) {
-    final password = value ?? '';
-    if (password.length < 8) return 'Use at least 8 characters.';
-    return null;
-  }
-
-  /// Ensures both password fields match before signup.
-  String? _validateConfirmation(String? value) {
-    if (value != _passwordController.text) return 'Passwords do not match.';
-    return null;
   }
 }

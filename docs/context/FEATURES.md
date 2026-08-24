@@ -44,6 +44,9 @@ Same Analytics tab as §3. Uses history to suggest what to do next — **not** a
 - Runs while the app shell is open (Realtime on new readings + cultivation phase). Bell shows unread count; Home/Crops nav get a red dot. Tapping that tab marks those alerts read. OS / FCM when the app is killed is later.
 - SQL: [`supabase_notifications.sql`](supabase_notifications.sql). Page: [`../pages/notifications.md`](../pages/notifications.md).
 
+## Future (not v1)
+ESP32 pre-provision claim (code/QR sticker) and multi-sensor / zone-aware AI on one farm: [`FUTURE_ENHANCEMENTS_DEVICES.md`](FUTURE_ENHANCEMENTS_DEVICES.md).
+
 ## Data Requirement (critical)
 Store **timestamped sensor readings** and matching **weather snapshots** from day one. Analytics cannot work without historical data. Persist sensor rows about every **15 minutes**.
 

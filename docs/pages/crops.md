@@ -12,9 +12,9 @@ Not a history page. Monthly / seasonal fit from past readings belongs on [Analyt
 
 ## User flow
 - Open Crops tab from the app shell.
-- **No selected crop:** all **8-in-1** soil chips + this week’s weather chips + ranked **suitable** catalog matches (soil + forecast). Tap **Select crop** to plant it (today).
+- **No selected crop:** all **8-in-1** soil chips + this week’s weather chips + ranked **suitable** catalog matches (soil + forecast). Tap **Select crop** → confirm **Plant {name} today?** → plant it (today).
 - **Has selected crop:** the list is gone. The tab shows the **crop plan**: current phase, day N of M, harvest date, Groq irrigation / fertilizer / soil care.
-- **Change crop** (confirm) ends the active planting and returns to the list.
+- **Change crop** (confirm) sets the planting to `replaced` and returns to the list.
 - **Pull-to-refresh** the page (vertical). Phase strip stays horizontal-only.
 
 ## In / out (locked)
@@ -23,7 +23,7 @@ Not a history page. Monthly / seasonal fit from past readings belongs on [Analyt
 - Latest **8-in-1** soil chips (moisture, pH, temperature, EC, salinity, N, P, K) — chips, not Home’s live grid.
 - This week’s Open-Meteo chips (air temp, rain chance, condition) for matching.
 - Catalog match from the **latest** reading vs `crops` min/max **plus** forecast (PH wet/dry season, rain, air temp) — **local**, no Groq.
-- One active `plantings` row per farm (v1).
+- One active `plantings` row per farm (v1) — enforced by partial unique index `plantings_one_active_per_farm_uidx` (see [`supabase_plantings_one_active.sql`](../context/supabase_plantings_one_active.sql)).
 - Timeline from `planted_at` + catalog `phases` / `days_to_maturity` — **local**.
 - Groq **care** insights only when a crop is selected (dilig / abono / soil for this crop and phase).
 
@@ -36,7 +36,7 @@ Not a history page. Monthly / seasonal fit from past readings belongs on [Analyt
 - **Soil chips:** `SoilReadingsRepository.fetchLatest` (same latest row as Home; no month load). All eight probe fields.
 - **Weather chips + match:** live Open-Meteo at the farm pin (same service as Home). Fetched on first load and pull, even before a crop is selected. Fail visibly; soil match still runs.
 - **Catalog:** `public.crops` (8-in-1 ranges + `growing_season` + `scientific_name` + `days_to_maturity` + `phases` jsonb). SQL: [`../context/supabase_crops_home_ai.sql`](../context/supabase_crops_home_ai.sql).
-- **Selected crop:** `public.plantings` (`status = active`). Select = insert (`planted_at` = Manila today). Change = set `harvested`.
+- **Selected crop:** `public.plantings` (`status = active`). Select = confirm then insert (`planted_at` = Manila today). Change = confirm then set `replaced`. DB allows at most one active per farm.
 - **Care AI:** load latest `ai_assessments` where `kind = 'crops'` and `planting_id` matches. Call Edge Function `soilgood-insights` (`job=crops.care`) only if none saved, soil reading changed, `valid_until` passed, phase changed, or prompt version changed. No reading → no Groq call. Save overview + `ai_recommendations`. Rules: [`insights.json`](../../supabase/functions/soilgood-insights/insights.json) (`prompts.crops.care`).
 - First open: skeleton. Pull: keep last-known. Groq waits until the tab is visible (`TickerMode`) so IndexedStack does not bill on every app open.
 - No Realtime on this tab (pull + first load).
@@ -54,15 +54,15 @@ Not a history page. Monthly / seasonal fit from past readings belongs on [Analyt
 ## Optimistic UI
 | Action | Optimistic change | On failure |
 |---|---|---|
-| Select crop | Show plan immediately | Rollback to list + visible error |
-| Change crop | Return to list | Restore plan + visible error |
+| Select crop | Confirm → show plan immediately | Rollback to list + visible error |
+| Change crop | Confirm → return to list | Restore plan + visible error |
 
 ## Functions
 | Function | What it does | When called |
 |---|---|---|
 | `_reloadAll()` | Farm, planting, soil, catalog, weather; then care AI if planted | `TickerMode` first visible, pull |
-| `_selectCrop()` | Insert active planting | Tap Select crop |
-| `_changeCrop()` | Mark planting harvested | Confirm Change crop |
+| `_selectCrop()` | Confirm, then insert active planting | Tap Select crop → confirm |
+| `_changeCrop()` | Confirm, then mark planting `replaced` | Confirm Change crop |
 | `scoreCropMatches()` | % of 8-in-1 ranges + weather checks that fit | After soil + catalog + weather load |
 | `timelineFor()` | Day N / current phase / harvest date | When a planting exists |
 | `_loadCareAi()` | Load saved crops AI; Groq + save if regen | After successful plan load |
@@ -74,7 +74,9 @@ flowchart TD
   B --> C{Active planting?}
   C -->|No| D[8-in-1 chips plus weather chips plus suitable matches]
   D --> E[Tap Select crop]
-  E --> F[Insert plantings row]
+  E --> E2{Confirm Plant name today?}
+  E2 -->|No| D
+  E2 -->|Yes| F[Insert plantings row]
   F --> G[Crop plan on the tab]
   C -->|Yes| G
   G --> H[Phases plus day N of M plus harvest]

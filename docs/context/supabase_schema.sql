@@ -158,11 +158,17 @@ create table if not exists public.plantings (
   planted_at date,
   expected_harvest_at date,
   status text not null default 'active'
-    check (status in ('planned', 'active', 'harvested', 'failed')),
+    check (status in ('planned', 'active', 'harvested', 'failed', 'replaced')),
   created_at timestamptz not null default now()
 );
 
 create index if not exists plantings_farm_id_idx on public.plantings (farm_id);
+
+-- v1: one active planting per farm (partial unique). Existing DBs with
+-- duplicates: run supabase_plantings_one_active.sql first (cleanup + index).
+create unique index if not exists plantings_one_active_per_farm_uidx
+  on public.plantings (farm_id)
+  where status = 'active';
 
 -- ---------------------------------------------------------------------------
 -- ai_assessments
@@ -426,5 +432,6 @@ grant select, insert on table public.farm_actions to authenticated;
 -- (RPC ingest_soil_reading for anon key + ingest_token; never service_role on device).
 -- Analytics daily buckets + period_days: run supabase_analytics.sql.
 -- Crops phases + ai_assessments.kind (home/analytics/crops): run supabase_crops_home_ai.sql.
+-- Per-crop ranges v1 (17 crops + range_meta): run supabase_crop_ranges_v1.sql after that.
 -- Farm alert rows (inbox later): run supabase_notifications.sql.
 

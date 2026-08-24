@@ -10,7 +10,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../supabase/supabase_bootstrap.dart';
 
-const kGroqModel = 'llama-3.3-70b-versatile';
+/// Label saved with assessments. Must match `model` in the Edge Function.
+const kGroqModel = 'openai/gpt-oss-120b';
 const kInsightsFunction = 'soilgood-insights';
 
 /// Thrown when the insights Edge Function cannot return usable JSON.
