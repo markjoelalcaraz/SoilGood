@@ -80,8 +80,8 @@ begin
   if p_ph is not null and (p_ph < 0 or p_ph > 14) then
     raise exception 'ph out of range';
   end if;
-  -- Soil salinity in ppt; seawater is ~35 ppt. Probe max is usually far lower.
-  if p_salinity is not null and (p_salinity < 0 or p_salinity > 50) then
+  -- THE01888S reports salinity in the same numeric band as EC (µS/cm / mg/L style), not ppt.
+  if p_salinity is not null and (p_salinity < 0 or p_salinity > 20000) then
     raise exception 'salinity out of range';
   end if;
 

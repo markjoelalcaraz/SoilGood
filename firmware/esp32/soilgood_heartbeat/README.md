@@ -1,11 +1,12 @@
-# SoilGood ESP32 heartbeat
+# SoilGood ESP32 — live soil → Supabase
 
-Sends a dummy `soil_readings` row so Home can show the ESP32 is alive. Soil Modbus is not required.
+Reads THE01888S over Modbus (MAX485), then HTTPS POST to `ingest_soil_reading`.
 
-1. Run `docs/context/supabase_esp32_ingest.sql` in Supabase SQL Editor.
-2. Claim a device in the app (copy `DEVICE_UID` + `INGEST_TOKEN`).
-3. Copy `secrets.h.example` → `secrets.h` and fill WiFi + anon key (never service_role).
-4. Open `soilgood_heartbeat.ino` in Arduino IDE, board **ESP32 Dev Module**, upload.
-5. Serial Monitor 115200: `POST 200` and a UUID. Home should get a new reading (moisture 0).
+1. Run / re-run `docs/context/supabase_esp32_ingest.sql` in Supabase SQL Editor  
+   (needed if salinity was limited to 50 — probe reports hundreds).
+2. Keep `secrets.h` filled (WiFi, DEVICE_UID, INGEST_TOKEN, anon key — never service_role).
+3. Wiring: 12V → sensor RED/BLACK; MAX485 A/B; ESP32 D16/D17/D4/D5/3V3/GND; USB for Serial.
+4. Upload `soilgood_heartbeat.ino` (ESP32 Dev Module).
+5. Serial 115200: soil numbers + `POST 200` + UUID. Home should show live moisture/temp/EC.
 
-JSON body uses `p_device_uid` / `p_ingest_token` (Postgres arg names).
+Interval: successful POST waits `POST_EVERY_MS` (~15 min). Modbus fail retries after `RETRY_FAIL_MS` (10s).
