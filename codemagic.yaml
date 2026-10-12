@@ -1,0 +1,54 @@
+# SoilGood iOS build for Sideloadly.
+# Codemagic produces a signed .ipa; download it from Artifacts and install with Sideloadly.
+#
+# Before the first build, in the Codemagic UI:
+# 1. Connect this Git repo and choose "codemagic.yaml" as the configuration.
+# 2. Code signing identities: upload an Apple Distribution (or Development) certificate
+#    and an Ad Hoc provisioning profile for bundle id com.soilsense.soilSense.
+#    The iPhone UDID must be on that profile.
+# 3. Environment variable group "soilgood_secrets":
+#      SUPABASE_URL
+#      SUPABASE_ANON_KEY
+#    Use the anon key only. Never put the service_role key here.
+
+workflows:
+  ios-sideload:
+    name: SoilGood iOS (Sideloadly IPA)
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    environment:
+      ios_signing:
+        distribution_type: ad_hoc
+        bundle_identifier: com.soilsense.soilSense
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - soilgood_secrets
+    scripts:
+      - name: Write .env for the Flutter asset bundle
+        script: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "Missing SUPABASE_URL or SUPABASE_ANON_KEY. Add them to the soilgood_secrets group."
+            exit 1
+          fi
+          cat > "$CM_BUILD_DIR/.env" <<EOF
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          EOF
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Generate iOS project files
+        script: flutter build ios --config-only --release
+      - name: Set up code signing
+        script: xcode-project use-profiles
+      - name: Install CocoaPods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
