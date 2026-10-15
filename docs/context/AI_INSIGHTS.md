@@ -4,7 +4,7 @@ Source of truth for **parameters + prompt rules**: [`supabase/functions/soilgood
 
 Flutter loads the same file locally to **classify bands** (0 Groq tokens). Groq only sees a **page slice** attached by the **Edge Function**.
 
-**Locked:** Groq (`openai/gpt-oss-120b`) is the only model for **generated** insight text. Groq decommissioned the previous `llama-3.3-70b-versatile` on 2026-08-16; `openai/gpt-oss-120b` is their recommended replacement. Catalog match and phase/day math stay on-device. The Groq key is an Edge Function secret — never in the Flutter APK.
+**Locked:** Groq (`openai/gpt-oss-120b`) is the only model for **generated** insight text. Groq decommissioned the previous `llama-3.3-70b-versatile` on 2026-08-16; `openai/gpt-oss-120b` is their recommended replacement. Phase/day math and **grounded match facts** stay on-device; **catalog scores** use Groq `crops.match`. The Groq key is an Edge Function secret — never in the Flutter APK.
 
 ## Production API
 
@@ -25,8 +25,8 @@ Closed app: no call. Fingerprint / valid_until still skip Groq when story unchan
 |---|---|---|
 | Home today | `home` | `facts.soil_reading_id` |
 | Analytics selected window | `analytics` | `history.days` (non-empty) + `period_start` / `period_end` |
+| Crops catalog match | `crops.match` | `facts.soil_reading_id` + `catalog` (grounded per-crop facts) |
 | Crops care | `crops.care` | `facts.soil_reading_id` + crop/phase |
-| Crops catalog | *(none)* | local vs `crops` table |
 
 No live reading → HTTP 400 `no_reading`, **Groq is not called**.
 
@@ -43,6 +43,8 @@ npx supabase secrets set GROQ_API_KEY=gsk_...
 npx supabase functions deploy soilgood-insights
 ```
 
+Also run [`supabase_crops_match_ai.sql`](supabase_crops_match_ai.sql) so `ai_assessments.kind` accepts `crops_match`.
+
 The function **imports** `insights.json` so the file is in the deploy bundle. Do not switch back to `Deno.readTextFile` — that 500s on hosted Edge because the JSON is not on disk.
 
 `YOUR_PROJECT_REF` is the subdomain in `SUPABASE_URL` (`https://<ref>.supabase.co`).
@@ -57,7 +59,7 @@ Dashboard alternative: Project Settings → Edge Functions → secrets, then dep
 |---|---|
 | Flutter loads insights.json | **No** |
 | Classify moisture/pH/NPK with `bands` on the phone | **No** |
-| Score latest 8-in-1 soil + forecast vs `crops` min/max | **No** |
+| Build grounded per-crop match facts vs `crops` min/max | **No** |
 | Compute phase / days-to-harvest from `plantings` | **No** |
 | Reuse saved `ai_assessments` | **No** |
 | Edge Function refuses `no_reading` | **No** |
@@ -68,13 +70,13 @@ Dashboard alternative: Project Settings → Edge Functions → secrets, then dep
 2. **Send a slice**, not the file. Drop `meta`, `sensor_valid`, `regen`, `cache_hours`, and other pages. Analytics does not get `irrigation`.
 3. **Send classified facts**, not essays.
 4. **Compact history** — daily buckets, not every 15-minute row.
-5. **Crops catalog match is local**.
+5. **Crops catalog match** sends grounded facts once per regen (not per crop call); skip Groq when soil/weather fingerprint unchanged.
 
 ## Prompt versions
 | Job | `prompt_version` | Model |
 |---|---|---|
-| Home / Analytics / Crops care | `insights_v4` | Groq via Edge Function |
-| Crops catalog | no model | local vs `crops` |
+| Home / Analytics / Crops match / Crops care | `insights_v6` | Groq via Edge Function |
+| Crops water week | `irrigation_rules_v1` | **on-device rules** (not Groq) |
 
 Bump `prompt_version` in the JSON when rules/bands change so saved assessments regen.
 
@@ -84,8 +86,12 @@ Home returns up to **three** recommendations: Condition (`soil_management`), Wat
 **Per-crop bands:** when an active planting exists, Flutter classifies moisture/temp/pH/EC/salinity against `crops` baselines + phase overlays ([`CROP_RANGES.md`](CROP_RANGES.md)). No planting → universal `insights.json` + global extreme floors. NPK stays universal **low-only**. Critical bands (`critical_dry`, `critical_high`, …) require urgent wording, `priority: high`, and tinted tip cards. Notifications escalate the same way.
 
 Smarter regen compares a local **story fingerprint** (bands including `temp_band` + rain advice + crop/phase + crop range token), stamped as `SGFP:…` on `ai_assessments.overview` — a new `soil_reading_id` alone does not call Groq when the story is unchanged.
+
+## Crops match (v6)
+Flutter builds per-crop facts from `public.crops` ranges + latest reading + Open-Meteo (0 tokens). Groq `crops.match` returns scores + short reasons only from those facts. Saved as `kind=crops_match`. Local `scoreCropMatches` is fallback if the API fails. Regen uses soil id + weather story fingerprint + `valid_until` + prompt version.
+
 ## Next (locked)
 Keep slices short for tokens. After edits: bump `prompt_version` + `npx supabase functions deploy soilgood-insights`.
 
 ## Storage
-`ai_assessments.kind` is `home` \| `analytics` \| `crops`. Crops rows also set `planting_id`. SQL: [`supabase_crops_home_ai.sql`](supabase_crops_home_ai.sql).
+`ai_assessments.kind` is `home` \| `analytics` \| `crops` \| `crops_match`. Crops care rows also set `planting_id`. Match rows leave `planting_id` null. SQL: [`supabase_crops_home_ai.sql`](supabase_crops_home_ai.sql), [`supabase_crops_match_ai.sql`](supabase_crops_match_ai.sql).

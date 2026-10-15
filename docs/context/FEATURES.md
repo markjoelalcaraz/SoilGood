@@ -23,14 +23,14 @@ Lives on the **Analytics** tab (not a 5th bottom-nav item).
 
 ## 4. AI-Assisted Recommendations
 Analyzes soil + weather data. Split by page so Home and Analytics do not repeat the same tip:
-- **Home (now):** soil condition + Groq whether to irrigate *today*, from the latest reading + forecast
-- **Analytics (over time):** Groq reads the **selected date window** — kalagayan of that range, then soil/crop betterment actions (not “irrigate tomorrow 6 AM”)
-- Crop *catalog* match from the **latest** 8-in-1 snapshot **plus** the current forecast is the Crops tab — not a monthly average
+- **Home (now):** Condition, Water today, Nutrients, and **Crop care** (phase chores only when planted) from Groq; Quick Insight is rule-based wording (not raw ppm)
+- **Crops (planted):** rolling **7-day water plan** (rules engine — not 7 automatic waterings) + Mark watered Today only; Care insights = phase chores only
+- **Analytics (over time):** Groq reads the **selected date window** — kalagayan of that range, then soil/crop betterment actions (not “irrigate tomorrow 6 AM”); also **logged watering counts** from Mark watered
 
 ## 5. Analytics (History + Trends + Period Averages)
 Same Analytics tab as §3. Uses history to suggest what to do next — **not** a second live dashboard (no current 8-in-1 grid, no “now” weather tiles):
 - **Trend analysis** — moisture, pH, temperature, EC, salinity, NPK over time
-- **Irrigation patterns** — how often soil goes dry; typical dry periods
+- **Irrigation patterns** — dry-day inference from history **plus** farmer Mark watered logs (`farm_actions`)
 - **Nutrient depletion tracking** — N/P/K trends; when fertilization may be needed
 - **Soil health score over time** — composite score from parameters
 - **Weather vs soil correlation** — e.g. drying rate after rain; heat vs moisture
@@ -44,8 +44,10 @@ Same Analytics tab as §3. Uses history to suggest what to do next — **not** a
 - Runs while the app shell is open (Realtime on new readings + cultivation phase). Bell shows unread count; Home/Crops nav get a red dot. Tapping that tab marks those alerts read. OS / FCM when the app is killed is later.
 - SQL: [`supabase_notifications.sql`](supabase_notifications.sql). Page: [`../pages/notifications.md`](../pages/notifications.md).
 
-## Future (not v1)
-ESP32 pre-provision claim (code/QR sticker) and multi-sensor / zone-aware AI on one farm: [`FUTURE_ENHANCEMENTS_DEVICES.md`](FUTURE_ENHANCEMENTS_DEVICES.md).
+## Future (not v1 UI)
+Multi-sensor / zone-aware AI on one farm; SoftAP/BLE WiFi; QR for claim codes: [`FUTURE_ENHANCEMENTS_DEVICES.md`](FUTURE_ENHANCEMENTS_DEVICES.md). Claim-by-code (type sticker) is the current path — run [`supabase_device_claim.sql`](supabase_device_claim.sql).
+
+**Soil beyond texture:** Optional curated **soil series** is in v1 (same onboarding step). DA **NCCAG** map lookup by farm pin + full province series keys — later. Tracked in [`FUTURE_ENHANCEMENTS_SOIL.md`](FUTURE_ENHANCEMENTS_SOIL.md). Research: [`SOIL_TEXTURE_CROP_FIT.md`](SOIL_TEXTURE_CROP_FIT.md), [`SOIL_SERIES_CROP_FIT.md`](SOIL_SERIES_CROP_FIT.md).
 
 ## Data Requirement (critical)
 Store **timestamped sensor readings** and matching **weather snapshots** from day one. Analytics cannot work without historical data. Persist sensor rows about every **15 minutes**.

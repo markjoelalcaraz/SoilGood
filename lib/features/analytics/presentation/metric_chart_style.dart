@@ -36,9 +36,13 @@ Color metricChartColor(SoilMetric metric) => switch (metric) {
 
 /// 0–1 for overlay, or null when that day has no average.
 double? metricOverlayUnit(SoilMetric metric, DailySoilBucket bucket) {
-  final v = metric.avgOf(bucket);
-  if (v == null) return null;
+  return metricOverlayFromRaw(metric, metric.avgOf(bucket));
+}
+
+/// Scale a raw sensor value onto 0–1 for All-sensors overlay lines.
+double? metricOverlayFromRaw(SoilMetric metric, double? value) {
+  if (value == null) return null;
   final (lo, hi) = metricOverlayBand(metric);
   if (hi == lo) return 0.5;
-  return ((v - lo) / (hi - lo)).clamp(0.0, 1.0);
+  return ((value - lo) / (hi - lo)).clamp(0.0, 1.0);
 }

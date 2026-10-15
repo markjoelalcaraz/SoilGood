@@ -17,16 +17,19 @@ class AppRefreshScroll extends StatelessWidget {
     required this.onRefresh,
     required this.children,
     this.padding = const EdgeInsets.fromLTRB(16, 8, 16, 24),
+    this.maxWidth = kAppContentMaxWidth,
     super.key,
   });
 
   final Future<void> Function() onRefresh;
   final List<Widget> children;
   final EdgeInsetsGeometry padding;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
     return AppContentWidth(
+      maxWidth: maxWidth,
       child: RefreshIndicator(
         color: AppColors.primary,
         onRefresh: onRefresh,

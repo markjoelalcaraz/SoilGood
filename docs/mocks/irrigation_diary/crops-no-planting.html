@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crops no planting — SoilGood actual UI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,700;1,7..72,700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@24,400,0..1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body style="background:var(--surface-muted)">
+  <p class="back-link">
+    <a href="index.html">← All mocks</a> · No planting ·
+    <a href="crops.html">with plan</a>
+  </p>
+  <div class="phone solo">
+    <header class="topbar">
+      <span class="material-symbols-outlined" style="color:var(--primary)">eco</span>
+      <h1 class="title">Crops</h1>
+      <button class="icon-btn" type="button"><span class="material-symbols-outlined">notifications</span></button>
+    </header>
+    <div class="content">
+      <div class="soft-card">
+        <div style="font-weight:800;font-size:13px;margin-bottom:10px">Latest soil</div>
+        <div class="chip-wrap">
+          <span class="chip warn">Moisture 28%</span>
+          <span class="chip good">pH 6.4</span>
+          <span class="chip neutral">Temp 29°C</span>
+          <span class="chip neutral">EC 1.2</span>
+          <span class="chip warn">N 42</span>
+          <span class="chip warn">P 18</span>
+          <span class="chip warn">K 55</span>
+        </div>
+      </div>
+      <div class="soft-card stack-12">
+        <div style="font-weight:800;font-size:13px;margin-bottom:10px">This week’s weather</div>
+        <div class="chip-wrap">
+          <span class="chip good">Sunny · 32°C</span>
+          <span class="chip neutral">Rain 40% Tue</span>
+          <span class="chip neutral">12 mm / 3d</span>
+          <span class="chip neutral">PH wet season</span>
+        </div>
+      </div>
+
+      <div class="proposed-block stack-16">
+        <span class="proposed-label">Proposed</span>
+        <div class="empty-box">
+          <h3>No weekly water plan yet</h3>
+          <p class="muted" style="margin:0 0 14px;font-size:14px">
+            Schedule, checklist, and diary appear after you plant.
+            Home still advises water today from soil + weather.
+          </p>
+        </div>
+      </div>
+
+      <div class="section-header stack-16"><h2>Suitable crops</h2></div>
+      <div class="soft-card zero surface stack-12">
+        <div class="match-hero">
+          <span class="pct">82% Match</span>
+          <p class="name">Tomato</p>
+        </div>
+        <div class="match-body">
+          <p class="tiny" style="font-style:italic;margin:0 0 6px">Solanum lycopersicum</p>
+          <p class="body-14" style="margin:0">Soil + forecast fit flowering needs.</p>
+          <button class="btn-select" type="button">Select crop</button>
+        </div>
+      </div>
+      <div class="soft-card zero surface stack-12">
+        <div class="match-hero" style="background:linear-gradient(135deg,#705c30cc,#4a7c59a6)">
+          <span class="pct">76% Match</span>
+          <p class="name">Eggplant</p>
+        </div>
+        <div class="match-body">
+          <p class="tiny" style="font-style:italic;margin:0 0 6px">Solanum melongena</p>
+          <p class="body-14" style="margin:0">Slightly dry for start · still okay.</p>
+          <button class="btn-select" type="button">Select crop</button>
+        </div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="home.html"><div class="ico-wrap"><span class="material-symbols-outlined">home</span></div>Home</a>
+      <a href="analytics.html"><div class="ico-wrap"><span class="material-symbols-outlined">insights</span></div>Analytics</a>
+      <div class="item active"><div class="ico-wrap"><span class="material-symbols-outlined">eco</span></div>Crops</div>
+      <div class="item"><div class="ico-wrap"><span class="material-symbols-outlined">person</span></div>Profile</div>
+    </nav>
+  </div>
+</body>
+</html>

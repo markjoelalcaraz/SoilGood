@@ -1,7 +1,8 @@
 /// Saved Groq insight row (`ai_assessments` + child `ai_recommendations`).
 ///
-/// Used by Home (`kind=home`) and Crops care (`kind=crops`). Analytics keeps
-/// its own [PeriodAssessment] this round.
+/// Used by Home (`kind=home`), Crops care (`kind=crops`), and Crops catalog
+/// match (`kind=crops_match`). Analytics keeps its own [PeriodAssessment]
+/// this round.
 library;
 
 /// One persisted recommendation under an assessment.

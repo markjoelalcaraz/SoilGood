@@ -1,0 +1,20 @@
+flowchart TD
+  A[Open app] --> B{Logged in?}
+  B -->|No| C[Login or Signup]
+  C --> D[Supabase Auth]
+  D --> E{Onboarding status}
+  B -->|Yes| E
+
+  E -->|Profile incomplete| F[Step 1: name + address → profiles]
+  F --> G
+  E -->|No farm| G[Step 2: GPS + Carto pin → farms lat/long]
+  G --> H{Confirm location?}
+  H -->|No| G
+  H -->|Yes| I
+  E -->|No device| I[Step 3: claim_code]
+  I --> J{Valid unclaimed code?}
+  J -->|No| K[Visible error — stay]
+  J -->|Yes| L[claim_device → device.farm_id]
+  J -->|Skip| M
+  L --> M[Enter app shell]
+  E -->|Complete| M

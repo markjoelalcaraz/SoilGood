@@ -1,19 +1,25 @@
 /// Analytics feature page in the app shell content area (second bottom-nav tab).
 ///
-/// Farm notebook: selected Manila window (week / 2 weeks / 30 days / calendar),
-/// metric or All-sensors overlay, period avg/min/max, tap-a-day readings, and
-/// Groq period AI keyed to that start/end. Not a second Home.
+/// Farm notebook: selected Manila window, **All sensors** by default (scaled
+/// overlay — intra-day when only one day has data, daily Mon–Sun when ≥2),
+/// or one metric in real units. Groq period AI keyed to start/end. Not a
+/// second Home.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/live/farm_live_hub.dart';
+import '../../../core/live/live_page.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/data/refresh_timeout.dart';
 import '../../../shared/navigation/app_page_routes.dart';
 import '../../../shared/widgets/app_refresh_scroll.dart';
 import '../../../shared/widgets/ui_primitives.dart';
-import '../../shell/app_shell.dart';
+import '../../crops/data/irrigation_plan_repository.dart';
+import '../../home/data/soil_reading.dart';
+import '../../notifications/logic/notification_scope.dart';
+import '../../notifications/presentation/notifications_page.dart';
 import '../data/daily_soil_bucket.dart';
 import '../data/period_ai_repository.dart';
 import '../data/period_assessment.dart';
@@ -37,16 +43,21 @@ class AnalyticsPage extends StatefulWidget {
   State<AnalyticsPage> createState() => _AnalyticsPageState();
 }
 
-class _AnalyticsPageState extends State<AnalyticsPage> {
+class _AnalyticsPageState extends State<AnalyticsPage> with LivePage {
   final _historyRepo = SoilHistoryRepository();
   final _weatherRepo = PeriodWeatherRepository();
   final _aiRepo = PeriodAiRepository();
   final _groq = GroqPeriodAiClient();
+  final _irrigationRepo = IrrigationPlanRepository();
 
   AnalyticsPeriod _period = AnalyticsPeriod.thisWeek();
+
+  /// Null = All sensors (scaled overlay / intra-day). Default.
   SoilMetric? _metric;
 
   List<DailySoilBucket> _buckets = [];
+  /// Raw readings for the only day in the window (All-sensors intra-day lines).
+  List<SoilReading> _intraDay = [];
   Object? _historyError;
   bool _historyDone = false;
 
@@ -58,7 +69,24 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   Object? _aiError;
   bool _aiLoading = false;
 
+  int? _irrigationCount;
+  List<Map<String, dynamic>> _irrigationHistory = [];
+  Object? _irrigationError;
+  bool _irrigationDone = false;
+
   bool _started = false;
+
+  @override
+  Set<LiveSource> get liveSources => const {
+    LiveSource.soil,
+    LiveSource.actions,
+    LiveSource.irrigation,
+    LiveSource.plantings,
+  };
+
+  /// New readings, a watering log, or a crop change. Keep the chart, then reload.
+  @override
+  Future<void> onLive(Set<LiveSource> changed) => _reloadAll();
 
   /// IndexedStack builds this tab offstage with Home. Wait until Analytics
   /// is actually visible so Groq is not called on every app open.
@@ -71,12 +99,57 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     }
   }
 
-  /// Refetches soil + period weather in parallel, then saved AI.
+  /// Refetches soil + period weather + irrigation logs in parallel, then saved AI.
   Future<void> _reloadAll() async {
-    final results = await Future.wait([_loadHistory(), _loadWeather()]);
+    final results = await Future.wait([
+      _loadHistory(),
+      _loadWeather(),
+      _loadIrrigationLogs(),
+    ]);
     final historyOk = results[0];
     if (!historyOk) return;
     await _loadAi();
+  }
+
+  /// Count + recent Mark watered rows for the selected Manila window.
+  Future<bool> _loadIrrigationLogs() async {
+    try {
+      final farmId = await withRefreshTimeout(
+        _historyRepo.fetchPrimaryFarmId(),
+      );
+      if (farmId == null) {
+        throw StateError('No farm found. Finish onboarding first.');
+      }
+      final count = await withRefreshTimeout(
+        _irrigationRepo.countIrrigations(
+          farmId: farmId,
+          start: _period.start,
+          end: _period.end,
+        ),
+      );
+      final history = await withRefreshTimeout(
+        _irrigationRepo.fetchIrrigationHistory(
+          farmId: farmId,
+          start: _period.start,
+          end: _period.end,
+        ),
+      );
+      if (!mounted) return false;
+      setState(() {
+        _irrigationCount = count;
+        _irrigationHistory = history;
+        _irrigationError = null;
+        _irrigationDone = true;
+      });
+      return true;
+    } on Object catch (e) {
+      if (!mounted) return false;
+      setState(() {
+        _irrigationError = e;
+        _irrigationDone = true;
+      });
+      return false;
+    }
   }
 
   /// Returns false when the fetch failed so AI does not use a stale window.
@@ -85,9 +158,17 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       final buckets = await withRefreshTimeout(
         _historyRepo.fetchDaily(start: _period.start, end: _period.end),
       );
+      // One calendar day → load raw rows so All sensors can draw intra-day lines.
+      var intra = <SoilReading>[];
+      if (buckets.length == 1) {
+        intra = await withRefreshTimeout(
+          _historyRepo.fetchForDay(buckets.first.bucketDate),
+        );
+      }
       if (!mounted) return false;
       setState(() {
         _buckets = buckets;
+        _intraDay = intra;
         _historyError = null;
         _historyDone = true;
       });
@@ -221,6 +302,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   void _openDay(DateTime manilaDate) {
+    final today = manilaCalendarDate(DateTime.now());
+    // Week chart may include Tue–Sun with no data yet — ignore future taps.
+    if (manilaDate.isAfter(today)) return;
     Navigator.of(context).push(
       AppPageRoutes.slideFromRight(DayReadingsPage(manilaDate: manilaDate)),
     );
@@ -230,26 +314,39 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   Widget build(BuildContext context) {
     final waitingFirst =
         !_historyDone && _buckets.isEmpty && _historyError == null;
-    final stats = _metric == null ? null : metricStats(_buckets, _metric!);
+    // 1 calendar day with raw rows → intra-day trend (All sensors or one metric).
+    final useAllSensors = _metric == null;
+    final useIntraDay = _buckets.length < 2 && _intraDay.isNotEmpty;
+    final useDailyOverlay = useAllSensors && _buckets.length >= 2;
+    final chartMetric = _metric ?? SoilMetric.moisture;
+    final stats = useAllSensors ? null : metricStats(_buckets, chartMetric);
+    // Week skeleton is 7 slots; data window may still be Mon→today only.
+    final expectedChartDays = _period.usesWeekChartSkeleton
+        ? _period.chartDays.length
+        : _period.dayCount;
     final shortHistory =
         _historyDone &&
         _buckets.isNotEmpty &&
-        _buckets.length < _period.dayCount;
+        _buckets.length < expectedChartDays;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const SoilGoodTopBar(
-        title: 'Analytics',
-        leadingIcon: Icons.insights,
-      ),
-      body: AppRefreshScroll(
+      body: Stack(
+        children: [
+          AppRefreshScroll(
         onRefresh: _reloadAll,
         children: [
+          Padding(
+            padding: EdgeInsets.only(
+              top: MediaQuery.paddingOf(context).top + 56,
+            ),
+          ),
           Text(
-            'Soil over time',
+            _period.label,
             style: GoogleFonts.literata(
               fontSize: 28,
               fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
@@ -282,12 +379,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             ),
             const SizedBox(height: 16),
             ..._weatherSection(),
+            const SizedBox(height: 16),
+            ..._irrigationSection(),
           ] else ...[
             if (shortHistory) ...[
               SoftCard(
                 color: AppColors.tertiarySoft,
                 child: Text(
-                  '${_buckets.length} day${_buckets.length == 1 ? '' : 's'} of data — not a full ${_period.dayCount} days. Averages use only days with readings.',
+                  _period.usesWeekChartSkeleton
+                      ? '${_buckets.length} day${_buckets.length == 1 ? '' : 's'} of data this week — chart shows Mon–Sun; empty days are not yet. Averages use only days with readings.'
+                      : '${_buckets.length} day${_buckets.length == 1 ? '' : 's'} of data — not a full ${_period.dayCount} days. Averages use only days with readings.',
                   style: const TextStyle(height: 1.5),
                 ),
               ),
@@ -296,22 +397,28 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             _TrendCard(
               period: _period,
               metric: _metric,
+              chartMetric: chartMetric,
+              useIntraDay: useIntraDay,
+              useDailyOverlay: useDailyOverlay,
               buckets: _buckets,
+              intraDay: _intraDay,
               stats: stats,
               onDayTap: _openDay,
               onSelectMetric: (m) => setState(() => _metric = m),
             ),
             const SizedBox(height: 16),
             ..._weatherSection(),
+            const SizedBox(height: 16),
+            ..._irrigationSection(),
             const SizedBox(height: 24),
-            const SectionHeader(
-              title: 'Past period',
-              icon: Icons.auto_awesome,
-            ),
+            const SectionHeader(title: 'Past period', icon: Icons.auto_awesome),
             const SizedBox(height: 4),
             Text(
               'Kalagayan of ${_period.label.toLowerCase()}, then actions for better soil and crops.',
-              style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 12),
             if (_aiError != null) ...[
@@ -326,6 +433,14 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             else if (_assessment != null)
               _PeriodAiBlock(assessment: _assessment!),
           ],
+        ],
+      ),
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 10,
+            left: 0,
+            right: 0,
+            child: const _AnalyticsHeader(),
+          ),
         ],
       ),
     );
@@ -357,40 +472,151 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       ),
     ];
   }
+
+  /// Mark watered counts from farm_actions for this window.
+  List<Widget> _irrigationSection() {
+    if (_irrigationError != null) {
+      return [
+        _SourceErrorCard(
+          message: 'Could not load watering logs:\n$_irrigationError',
+        ),
+      ];
+    }
+    if (!_irrigationDone && _irrigationCount == null) {
+      return [
+        const SoftCard(
+          color: AppColors.surfaceMuted,
+          child: SizedBox(height: 88),
+        ),
+      ];
+    }
+    return [
+      _IrrigationLogCard(
+        period: _period,
+        count: _irrigationCount ?? 0,
+        history: _irrigationHistory,
+      ),
+    ];
+  }
+}
+
+/// Sticky header row with Analytics title + the shared bell style.
+class _AnalyticsHeader extends StatelessWidget {
+  const _AnalyticsHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Icon(Icons.show_chart, color: AppColors.navIcon),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Analytics',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+                fontFamily: 'Literata',
+              ),
+            ),
+          ),
+          _AnalyticsBell(),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnalyticsBell extends StatelessWidget {
+  const _AnalyticsBell();
+
+  @override
+  Widget build(BuildContext context) {
+    final unread = NotificationScope.maybeOf(context)?.unreadCount ?? 0;
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 2,
+      shadowColor: const Color(0x332E3230),
+      child: IconButton(
+        tooltip: unread == 0
+            ? 'Notifications'
+            : 'Notifications ($unread unread)',
+        onPressed: () {
+          Navigator.of(context).push(
+            AppPageRoutes.slideFromRight(const NotificationsPage()),
+          );
+        },
+        icon: Badge(
+          isLabelVisible: unread > 0,
+          label: Text(unread > 9 ? '9+' : '$unread'),
+          backgroundColor: AppColors.error,
+          textColor: Colors.white,
+          child: const Icon(
+            Icons.notifications_outlined,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _TrendCard extends StatelessWidget {
   const _TrendCard({
     required this.period,
     required this.metric,
+    required this.chartMetric,
+    required this.useIntraDay,
+    required this.useDailyOverlay,
     required this.buckets,
+    required this.intraDay,
     required this.stats,
     required this.onDayTap,
     required this.onSelectMetric,
   });
 
   final AnalyticsPeriod period;
+
+  /// Null = All sensors.
   final SoilMetric? metric;
+  final SoilMetric chartMetric;
+  final bool useIntraDay;
+  final bool useDailyOverlay;
   final List<DailySoilBucket> buckets;
+  final List<SoilReading> intraDay;
   final MetricPeriodStats? stats;
   final void Function(DateTime manilaDate) onDayTap;
   final ValueChanged<SoilMetric> onSelectMetric;
 
   @override
   Widget build(BuildContext context) {
-    final days = period.days;
+    final allSensors = metric == null;
+    final days = period.chartDays;
     final byDate = {
       for (final b in buckets)
         DateTime(b.bucketDate.year, b.bucketDate.month, b.bucketDate.day): b,
     };
-    final overlay = metric == null;
-    final title = overlay
-        ? 'All sensors · ${period.label.toLowerCase()}'
-        : '${metric!.label} · ${period.label.toLowerCase()}';
 
-    final first = days.first;
-    final mid = days[days.length ~/ 2];
-    final last = days.last;
+    final title = useIntraDay
+        ? (allSensors
+            ? 'All sensors · today (intra-day)'
+            : '${chartMetric.label} · today (intra-day)')
+        : allSensors
+            ? 'All sensors · ${period.label.toLowerCase()}'
+            : '${chartMetric.label} · ${period.label.toLowerCase()}';
+
+    final weekSkeleton = !useIntraDay &&
+        period.usesWeekChartSkeleton &&
+        days.last.isAfter(period.end);
+
+    final showOverlayChart = useIntraDay || useDailyOverlay;
+    final thinIntra = !useIntraDay && buckets.length < 2 && intraDay.isEmpty;
 
     return SoftCard(
       color: AppColors.surface,
@@ -409,46 +635,143 @@ class _TrendCard extends StatelessWidget {
               letterSpacing: 0.3,
             ),
           ),
+          if (thinIntra) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Waiting for more readings today so the chart can draw a trend line.',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           SizedBox(
-            height: overlay ? 168 : 160,
+            height: showOverlayChart ? 168 : 160,
             width: double.infinity,
-            child: overlay
-                ? _TappableChart(
-                    days: days,
-                    onDayTap: onDayTap,
-                    overlaySeries: [
-                      for (final m in SoilMetric.values)
-                        (
-                          metricChartColor(m),
-                          [
-                            for (final d in days)
-                              byDate[d] == null
-                                  ? null
-                                  : metricOverlayUnit(m, byDate[d]!),
-                          ],
-                        ),
-                    ],
-                  )
-                : _TappableChart(
-                    days: days,
-                    onDayTap: onDayTap,
-                    values: [
-                      for (final d in days)
-                        byDate[d] == null ? null : metric!.avgOf(byDate[d]!),
-                    ],
-                  ),
+            child: useIntraDay
+                ? (allSensors
+                    ? _TappableChart(
+                        days: [
+                          for (final r in intraDay)
+                            manilaCalendarDate(r.recordedAt),
+                        ],
+                        onDayTap: onDayTap,
+                        overlaySeries: [
+                          for (final m in SoilMetric.values)
+                            (
+                              metricChartColor(m),
+                              [
+                                for (final r in intraDay)
+                                  metricOverlayFromRaw(m, m.valueOfReading(r)),
+                              ],
+                            ),
+                        ],
+                      )
+                    : _TappableChart(
+                        days: [
+                          for (final r in intraDay)
+                            manilaCalendarDate(r.recordedAt),
+                        ],
+                        onDayTap: onDayTap,
+                        lineColor: metricChartColor(chartMetric),
+                        values: [
+                          for (final r in intraDay)
+                            chartMetric.valueOfReading(r),
+                        ],
+                      ))
+                : useDailyOverlay
+                    ? _TappableChart(
+                        days: days,
+                        onDayTap: onDayTap,
+                        overlaySeries: [
+                          for (final m in SoilMetric.values)
+                            (
+                              metricChartColor(m),
+                              [
+                                for (final d in days)
+                                  byDate[d] == null
+                                      ? null
+                                      : metricOverlayUnit(m, byDate[d]!),
+                              ],
+                            ),
+                        ],
+                      )
+                    : _TappableChart(
+                        days: days,
+                        onDayTap: onDayTap,
+                        lineColor: metricChartColor(chartMetric),
+                        values: [
+                          for (final d in days)
+                            byDate[d] == null
+                                ? null
+                                : chartMetric.avgOf(byDate[d]!),
+                        ],
+                      ),
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _axisLabel(_md(first)),
-              _axisLabel(_md(mid)),
-              _axisLabel(_md(last)),
-            ],
-          ),
-          if (overlay) ...[
+          if (useIntraDay)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _axisLabel(_intraAxisLabels(intraDay).left),
+                _axisLabel(_intraAxisLabels(intraDay).mid),
+                _axisLabel(_intraAxisLabels(intraDay).right),
+              ],
+            )
+          else if (days.length <= 7)
+            Row(
+              children: [
+                for (final d in days)
+                  Expanded(
+                    child: Text(
+                      _mdPad(d),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _axisLabel(_mdPad(days.first)),
+                _axisLabel(_mdPad(days[days.length ~/ 2])),
+                _axisLabel(_mdPad(days.last)),
+              ],
+            ),
+          if (useIntraDay) ...[
+            const SizedBox(height: 8),
+            Text(
+              allSensors
+                  ? 'One day in this window — lines are today’s 15-min readings (scaled). Pick a single metric for real units.'
+                  : 'One day in this window — line is today’s 15-min ${chartMetric.label} readings.',
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+          ] else if (weekSkeleton) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Mon–Sun week. Today sits on its weekday; empty days are still ahead.',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+          ],
+          if (allSensors) ...[
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
@@ -491,18 +814,15 @@ class _TrendCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
-              'One chart, all eight. Each line is scaled to its typical range so % and pH can sit together — tap a box for real units.',
-              style: TextStyle(
+            Text(
+              useIntraDay
+                  ? 'All sensors graph for today. Tap a tile for one metric in real units.'
+                  : 'Daily All sensors (scaled). Tap a tile for one metric in real units.',
+              style: const TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 12,
                 height: 1.5,
               ),
-            ),
-            const SizedBox(height: 12),
-            _SensorAvgGrid(
-              buckets: buckets,
-              onSelectMetric: onSelectMetric,
             ),
           ] else ...[
             const Divider(height: 28),
@@ -515,15 +835,40 @@ class _TrendCard extends StatelessWidget {
               ResponsiveTwoUp(
                 first: _CaptionStat(
                   label: 'Avg (${stats!.dayCount}d)',
-                  value: formatMetric(stats!.average, metric!),
+                  value: formatMetric(stats!.average, chartMetric),
                 ),
                 second: _CaptionStat(
                   label: 'Min / max',
                   value:
-                      '${formatMetric(stats!.min, metric!)} – ${formatMetric(stats!.max, metric!)}',
+                      '${formatMetric(stats!.min, chartMetric)} – ${formatMetric(stats!.max, chartMetric)}',
                 ),
               ),
           ],
+          const SizedBox(height: 16),
+          const Text(
+            'SENSORS THIS WINDOW',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Tap a tile to chart that metric in real units.',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _SensorAvgGrid(
+            buckets: buckets,
+            selected: allSensors ? null : chartMetric,
+            onSelectMetric: onSelectMetric,
+          ),
           const SizedBox(height: 8),
           const Text(
             'Tap the chart to open that day’s readings.',
@@ -534,7 +879,30 @@ class _TrendCard extends StatelessWidget {
     );
   }
 
-  static String _md(DateTime d) => '${d.month}/${d.day}';
+  static String _mdPad(DateTime d) {
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$m/$day';
+  }
+
+  static String _hm(DateTime instant) {
+    final m = instant.toUtc().add(kManilaOffset);
+    final h = m.hour.toString().padLeft(2, '0');
+    final min = m.minute.toString().padLeft(2, '0');
+    return '$h:$min';
+  }
+
+  static ({String left, String mid, String right}) _intraAxisLabels(
+    List<SoilReading> readings,
+  ) {
+    if (readings.isEmpty) {
+      return (left: '—', mid: '—', right: '—');
+    }
+    final first = readings.first.recordedAt;
+    final mid = readings[readings.length ~/ 2].recordedAt;
+    final last = readings.last.recordedAt;
+    return (left: _hm(first), mid: _hm(mid), right: _hm(last));
+  }
 
   static Widget _axisLabel(String text) => Text(
         text,
@@ -548,10 +916,12 @@ class _TappableChart extends StatelessWidget {
     required this.onDayTap,
     this.values,
     this.overlaySeries,
+    this.lineColor,
   });
 
   final List<double?>? values;
   final List<(Color color, List<double?> values)>? overlaySeries;
+  final Color? lineColor;
   final List<DateTime> days;
   final void Function(DateTime manilaDate) onDayTap;
 
@@ -572,7 +942,10 @@ class _TappableChart extends StatelessWidget {
           child: CustomPaint(
             painter: series != null
                 ? _OverlayChartPainter(series: series)
-                : _TrendChartPainter(values: values ?? const []),
+                : _TrendChartPainter(
+                    values: values ?? const [],
+                    lineColor: lineColor ?? AppColors.primary,
+                  ),
             size: Size(constraints.maxWidth, constraints.maxHeight),
           ),
         );
@@ -585,9 +958,11 @@ class _SensorAvgGrid extends StatelessWidget {
   const _SensorAvgGrid({
     required this.buckets,
     required this.onSelectMetric,
+    this.selected,
   });
 
   final List<DailySoilBucket> buckets;
+  final SoilMetric? selected;
   final ValueChanged<SoilMetric> onSelectMetric;
 
   @override
@@ -603,6 +978,7 @@ class _SensorAvgGrid extends StatelessWidget {
                 child: _SensorAvgTile(
                   metric: metrics[i],
                   stats: metricStats(buckets, metrics[i]),
+                  selected: selected == metrics[i],
                   onTap: () => onSelectMetric(metrics[i]),
                 ),
               ),
@@ -612,6 +988,7 @@ class _SensorAvgGrid extends StatelessWidget {
                     ? _SensorAvgTile(
                         metric: metrics[i + 1],
                         stats: metricStats(buckets, metrics[i + 1]),
+                        selected: selected == metrics[i + 1],
                         onTap: () => onSelectMetric(metrics[i + 1]),
                       )
                     : const SizedBox.shrink(),
@@ -624,22 +1001,24 @@ class _SensorAvgGrid extends StatelessWidget {
   }
 }
 
-/// One sensor's avg/min/max for the selected window. Tap opens that metric chart.
+/// One sensor's avg/min/max for the selected window. Tap charts that metric.
 class _SensorAvgTile extends StatelessWidget {
   const _SensorAvgTile({
     required this.metric,
     required this.stats,
     required this.onTap,
+    this.selected = false,
   });
 
   final SoilMetric metric;
   final MetricPeriodStats? stats;
   final VoidCallback onTap;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.background,
+      color: selected ? AppColors.primarySoft : AppColors.background,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
@@ -649,7 +1028,10 @@ class _SensorAvgTile extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.outline),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.outline,
+              width: selected ? 1.5 : 1,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -670,10 +1052,12 @@ class _SensorAvgTile extends StatelessWidget {
                       metric.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.textSecondary,
+                        color: selected
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ),
@@ -737,7 +1121,10 @@ class _PeriodWeatherCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionHeader(title: 'Weather this window', icon: Icons.cloud_outlined),
+          const SectionHeader(
+            title: 'Weather this window',
+            icon: Icons.cloud_outlined,
+          ),
           const SizedBox(height: 4),
           Text(
             'Rain and temperature for ${period.label.toLowerCase()} — not today’s forecast.',
@@ -787,8 +1174,10 @@ class _PeriodWeatherCard extends StatelessWidget {
                           child: Container(
                             height: peakRain <= 0
                                 ? 4
-                                : (4 + (day.rainfallMm / peakRain) * 40)
-                                    .clamp(4, 44),
+                                : (4 + (day.rainfallMm / peakRain) * 40).clamp(
+                                    4,
+                                    44,
+                                  ),
                             decoration: BoxDecoration(
                               color: day.rainfallMm >= 1
                                   ? AppColors.primary
@@ -815,6 +1204,97 @@ class _PeriodWeatherCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Logged Mark watered actions for the selected Analytics window.
+class _IrrigationLogCard extends StatelessWidget {
+  const _IrrigationLogCard({
+    required this.period,
+    required this.count,
+    required this.history,
+  });
+
+  final AnalyticsPeriod period;
+  final int count;
+  final List<Map<String, dynamic>> history;
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftCard(
+      color: AppColors.surface,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionHeader(
+            title: 'Watering this window',
+            icon: Icons.water_drop_outlined,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Times you marked watered in ${period.label.toLowerCase()} — from Crops plan logs.',
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '$count',
+            style: GoogleFonts.literata(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
+          Text(
+            count == 1 ? 'watering logged' : 'waterings logged',
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (history.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (final row in history.take(5))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_outline,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _formatWhen(row['performed_at'] as String?),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _formatWhen(String? raw) {
+    if (raw == null) return 'Unknown time';
+    final dt = DateTime.tryParse(raw)?.toLocal();
+    if (dt == null) return raw;
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final h = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    return '$m/$d · $h:$min';
   }
 }
 
@@ -985,7 +1465,10 @@ class _AdviceCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               rec.recommendedAction,
-              style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
             ),
           ],
         ],
@@ -1028,15 +1511,19 @@ class _AnalyticsFirstLoadSkeleton extends StatelessWidget {
 }
 
 /// Line chart of daily averages; null days are gaps.
+///
+/// One-day windows (e.g. This week on Monday) draw a single dot — a line
+/// needs two points, but today still belongs on the chart.
 class _TrendChartPainter extends CustomPainter {
-  _TrendChartPainter({required this.values});
+  _TrendChartPainter({required this.values, required this.lineColor});
 
   final List<double?> values;
+  final Color lineColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final numeric = values.whereType<double>().toList();
-    if (numeric.isEmpty || values.length < 2) {
+    if (numeric.isEmpty) {
       final paint = Paint()
         ..color = AppColors.outline
         ..strokeWidth = 1;
@@ -1059,50 +1546,57 @@ class _TrendChartPainter extends CustomPainter {
       maxV += 1;
     }
 
-    final path = Path();
-    var started = false;
     final n = values.length;
-    for (var i = 0; i < n; i++) {
-      final v = values[i];
-      if (v == null) {
-        started = false;
-        continue;
-      }
-      final x = n == 1 ? size.width / 2 : size.width * (i / (n - 1));
+    double xAt(int i) => n == 1 ? size.width / 2 : size.width * (i / (n - 1));
+    double yAt(double v) {
       final y = size.height - ((v - minV) / (maxV - minV)) * size.height;
-      final clampedY = y.clamp(2.0, size.height - 2);
-      if (!started) {
-        path.moveTo(x, clampedY);
-        started = true;
-      } else {
-        path.lineTo(x, clampedY);
-      }
+      return y.clamp(2.0, size.height - 2);
     }
 
-    final line = Paint()
-      ..color = AppColors.primary
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, line);
+    // Need ≥2 plotted points for a segment; one day still gets a visible dot.
+    if (numeric.length >= 2) {
+      final path = Path();
+      var started = false;
+      for (var i = 0; i < n; i++) {
+        final v = values[i];
+        if (v == null) {
+          started = false;
+          continue;
+        }
+        final x = xAt(i);
+        final y = yAt(v);
+        if (!started) {
+          path.moveTo(x, y);
+          started = true;
+        } else {
+          path.lineTo(x, y);
+        }
+      }
 
-    final dot = Paint()..color = AppColors.primary;
+      final line = Paint()
+        ..color = lineColor
+        ..strokeWidth = 3
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(path, line);
+    }
+
+    final dot = Paint()..color = lineColor;
+    final radius = numeric.length == 1 ? 5.0 : 3.5;
     for (var i = 0; i < n; i++) {
       final v = values[i];
       if (v == null) continue;
-      final x = n == 1 ? size.width / 2 : size.width * (i / (n - 1));
-      final y = size.height - ((v - minV) / (maxV - minV)) * size.height;
-      canvas.drawCircle(Offset(x, y.clamp(2.0, size.height - 2)), 3.5, dot);
+      canvas.drawCircle(Offset(xAt(i), yAt(v)), radius, dot);
     }
   }
 
   @override
   bool shouldRepaint(covariant _TrendChartPainter oldDelegate) =>
-      oldDelegate.values != values;
+      oldDelegate.values != values || oldDelegate.lineColor != lineColor;
 }
 
-/// Several 0–1 series (All sensors). No dots — eight series would clutter.
+/// Several 0–1 series (All sensors). Dots only when a series has a single day.
 class _OverlayChartPainter extends CustomPainter {
   _OverlayChartPainter({required this.series});
 
@@ -1122,35 +1616,51 @@ class _OverlayChartPainter extends CustomPainter {
     List<double?> values,
   ) {
     final numeric = values.whereType<double>().toList();
-    if (numeric.isEmpty || values.length < 2) return;
+    if (numeric.isEmpty) return;
 
-    final path = Path();
-    var started = false;
     final n = values.length;
-    for (var i = 0; i < n; i++) {
-      final v = values[i];
-      if (v == null) {
-        started = false;
-        continue;
-      }
-      final x = n == 1 ? size.width / 2 : size.width * (i / (n - 1));
+    double xAt(int i) => n == 1 ? size.width / 2 : size.width * (i / (n - 1));
+    double yAt(double v) {
       final y = size.height - (v.clamp(0.0, 1.0) * size.height);
-      final clampedY = y.clamp(2.0, size.height - 2);
-      if (!started) {
-        path.moveTo(x, clampedY);
-        started = true;
-      } else {
-        path.lineTo(x, clampedY);
-      }
+      return y.clamp(2.0, size.height - 2);
     }
 
-    final line = Paint()
-      ..color = color
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, line);
+    if (numeric.length >= 2) {
+      final path = Path();
+      var started = false;
+      for (var i = 0; i < n; i++) {
+        final v = values[i];
+        if (v == null) {
+          started = false;
+          continue;
+        }
+        final x = xAt(i);
+        final y = yAt(v);
+        if (!started) {
+          path.moveTo(x, y);
+          started = true;
+        } else {
+          path.lineTo(x, y);
+        }
+      }
+
+      final line = Paint()
+        ..color = color
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(path, line);
+      return;
+    }
+
+    // One-day window (or one non-null day): show a colored point per series.
+    final dot = Paint()..color = color;
+    for (var i = 0; i < n; i++) {
+      final v = values[i];
+      if (v == null) continue;
+      canvas.drawCircle(Offset(xAt(i), yAt(v)), 4, dot);
+    }
   }
 
   @override

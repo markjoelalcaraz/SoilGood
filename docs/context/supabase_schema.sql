@@ -18,6 +18,8 @@ create table if not exists public.profiles (
   barangay text not null default '',
   municipality_city text not null default '',
   province text not null default '',
+  role text not null default 'farmer'
+    check (role in ('farmer', 'admin')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -54,27 +56,63 @@ create table if not exists public.farms (
   province text not null default '',
   latitude double precision,
   longitude double precision,
+  soil_texture text
+    check (
+      soil_texture is null
+      or soil_texture in (
+        'sandy',
+        'sandy_loam',
+        'loam',
+        'clay_loam',
+        'clay',
+        'unknown'
+      )
+    ),
+  soil_series text
+    check (
+      soil_series is null
+      or soil_series in (
+        'bantog',
+        'maligaya',
+        'bigaa',
+        'san_manuel',
+        'quingua',
+        'umingan',
+        'san_fernando',
+        'angeles',
+        'obando',
+        'other'
+      )
+    ),
+  soil_series_other text,
   created_at timestamptz not null default now()
 );
 
 create index if not exists farms_owner_id_idx on public.farms (owner_id);
 
 -- ---------------------------------------------------------------------------
--- devices (ESP32 — claimed by device_uid)
+-- devices (ESP32 — lab-preprovisioned; farmer claims via claim_code)
+-- farm_id null = unclaimed. Run docs/context/supabase_device_claim.sql on existing DBs.
 -- ---------------------------------------------------------------------------
 create table if not exists public.devices (
   id uuid primary key default gen_random_uuid(),
-  farm_id uuid not null references public.farms (id) on delete cascade,
+  farm_id uuid references public.farms (id) on delete cascade,
   device_uid text not null unique,
   ingest_token text,
+  claim_code text,
   name text not null default 'SoilGood Sensor',
   status text not null default 'unclaimed'
     check (status in ('unclaimed', 'active', 'offline', 'error')),
   last_seen_at timestamptz,
+  claimed_at timestamptz,
   created_at timestamptz not null default now()
 );
 
 create index if not exists devices_farm_id_idx on public.devices (farm_id);
+
+create unique index if not exists devices_claim_code_uidx
+  on public.devices (claim_code)
+  where claim_code is not null;
 
 -- ---------------------------------------------------------------------------
 -- soil_readings
@@ -296,19 +334,18 @@ create policy "farms_update_own" on public.farms
 create policy "farms_delete_own" on public.farms
   for delete using (owner_id = auth.uid());
 
--- devices
+-- devices (no farmer INSERT — lab SQL provision + claim_device RPC)
 drop policy if exists "devices_select_own" on public.devices;
 drop policy if exists "devices_insert_own" on public.devices;
 drop policy if exists "devices_update_own" on public.devices;
 drop policy if exists "devices_delete_own" on public.devices;
 create policy "devices_select_own" on public.devices
   for select using (public.user_owns_farm(farm_id));
-create policy "devices_insert_own" on public.devices
-  for insert with check (public.user_owns_farm(farm_id));
 create policy "devices_update_own" on public.devices
   for update using (public.user_owns_farm(farm_id));
 create policy "devices_delete_own" on public.devices
   for delete using (public.user_owns_farm(farm_id));
+-- Device claim RPC: see docs/context/supabase_device_claim.sql
 
 -- soil_readings
 drop policy if exists "soil_readings_select_own" on public.soil_readings;
@@ -433,5 +470,8 @@ grant select, insert on table public.farm_actions to authenticated;
 -- Analytics daily buckets + period_days: run supabase_analytics.sql.
 -- Crops phases + ai_assessments.kind (home/analytics/crops): run supabase_crops_home_ai.sql.
 -- Per-crop ranges v1 (17 crops + range_meta): run supabase_crop_ranges_v1.sql after that.
+-- Crop illustration paths: run supabase_crop_illustrations.sql after the ranges file.
+-- Farm soil texture (onboarding): run supabase_farm_soil_texture.sql on existing DBs.
+-- Optional soil series: run supabase_farm_soil_series.sql after texture migration.
 -- Farm alert rows (inbox later): run supabase_notifications.sql.
 

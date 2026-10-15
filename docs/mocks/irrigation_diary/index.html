@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SoilGood — Irrigation mocks (actual UI)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,700;1,7..72,700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@24,400,0..1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="gallery">
+    <h1>Irrigation diary mocks — actual SoilGood UI</h1>
+    <p class="lede">
+      Same tokens and components as the Flutter app (<code>AppColors</code>, SoftCard, SectionHeader,
+      SoilGoodTopBar, tip cards, crop plan hero). Dashed <strong>PROPOSED</strong> blocks are new
+      features for redesign — everything else mirrors live screens.
+    </p>
+    <div class="badge-row">
+      <span class="badge">bg #FAF6F0 · primary #4A7C59</span>
+      <span class="badge">Literata + Nunito Sans</span>
+      <span class="badge proposed">PROPOSED = new feature</span>
+    </div>
+
+    <div class="grid">
+      <!-- HOME -->
+      <div>
+        <div class="phone">
+          <header class="topbar">
+            <span class="material-symbols-outlined" style="color:var(--primary)">eco</span>
+            <h1 class="title">SoilGood</h1>
+            <button class="icon-btn" type="button" aria-label="Notifications">
+              <span class="material-symbols-outlined">notifications</span>
+              <span class="badge-dot">2</span>
+            </button>
+          </header>
+          <div class="content">
+            <div class="overview-banner">
+              <span class="material-symbols-outlined watermark">eco</span>
+              <div class="eyebrow">YOUR FARM OVERVIEW</div>
+              <p class="h-title">Overall Soil Condition</p>
+              <p class="status">DRY</p>
+              <div class="quick-insight">
+                <div class="qi-label">
+                  <span class="material-symbols-outlined" style="font-size:16px">auto_awesome</span>
+                  QUICK INSIGHT
+                </div>
+                <p style="margin:6px 0 0;font-size:13px;line-height:1.4">
+                  Soil is getting dry overall — moisture is low and nitrogen is a bit weak for flowering.
+                </p>
+              </div>
+            </div>
+
+            <div class="section-header stack-24">
+              <span class="material-symbols-outlined">sensors</span>
+              <h2>Sensor Findings</h2>
+            </div>
+            <div class="sensor-grid stack-12">
+              <div class="soft-card pad-metric metric-tile">
+                <div class="metric-head">
+                  <div class="icon-circle" style="background:rgba(74,124,89,.12);color:var(--primary)">
+                    <span class="material-symbols-outlined">water_drop</span>
+                  </div>
+                  <span class="chip warn">Low</span>
+                </div>
+                <div class="label">Moisture</div>
+                <div><span class="value">28</span><span class="unit">%</span></div>
+              </div>
+              <div class="soft-card pad-metric metric-tile">
+                <div class="metric-head">
+                  <div class="icon-circle" style="background:rgba(112,92,48,.12);color:var(--tertiary)">
+                    <span class="material-symbols-outlined">thermostat</span>
+                  </div>
+                </div>
+                <div class="label">Temperature</div>
+                <div><span class="value">29.0</span><span class="unit">°C</span></div>
+              </div>
+              <div class="soft-card pad-metric metric-tile">
+                <div class="metric-head">
+                  <div class="icon-circle" style="background:rgba(112,92,48,.12);color:var(--tertiary)">
+                    <span class="material-symbols-outlined">science</span>
+                  </div>
+                </div>
+                <div class="label">pH Level</div>
+                <div><span class="value">6.4</span></div>
+              </div>
+              <div class="soft-card pad-metric metric-tile">
+                <div class="metric-head">
+                  <div class="icon-circle" style="background:rgba(107,99,88,.12);color:var(--secondary)">
+                    <span class="material-symbols-outlined">bolt</span>
+                  </div>
+                </div>
+                <div class="label">EC</div>
+                <div><span class="value">1.2</span><span class="unit">dS/m</span></div>
+              </div>
+            </div>
+            <p class="tiny stack-8">+ NPK / salinity tiles (same SoftCard grid in app)</p>
+
+            <div class="section-header stack-24">
+              <span class="material-symbols-outlined">cloud</span>
+              <h2>Forecast</h2>
+            </div>
+            <div class="soft-card surface-high stack-12">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="material-symbols-outlined" style="color:var(--tertiary)">wb_sunny</span>
+                <strong style="font-family:var(--display);font-size:18px;flex:1">Sunny · 32°C</strong>
+                <span class="tiny" style="font-weight:700">Open-Meteo</span>
+              </div>
+              <div class="forecast-row stack-12">
+                <div class="day-card active">
+                  <div class="d-label">Today</div>
+                  <span class="material-symbols-outlined" style="color:var(--tertiary);margin-top:8px">wb_sunny</span>
+                  <div class="d-high">32°</div>
+                  <div class="d-low">24°</div>
+                </div>
+                <div class="day-card">
+                  <div class="d-label">Tomorrow</div>
+                  <span class="material-symbols-outlined" style="color:var(--primary);margin-top:8px">rainy</span>
+                  <div class="d-high">30°</div>
+                  <div class="d-low">23°</div>
+                </div>
+                <div class="day-card">
+                  <div class="d-label">Wed</div>
+                  <span class="material-symbols-outlined" style="color:var(--primary);margin-top:8px">rainy</span>
+                  <div class="d-high">29°</div>
+                  <div class="d-low">22°</div>
+                </div>
+              </div>
+              <div class="divider"></div>
+              <div style="display:flex;gap:8px;align-items:flex-start">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--text-secondary)">info</span>
+                <p class="body-sm" style="margin:0">Rain chance 40% tomorrow — consider pausing irrigation.</p>
+              </div>
+            </div>
+
+            <div class="section-header stack-24">
+              <span class="material-symbols-outlined">psychology</span>
+              <h2>Tips for today</h2>
+            </div>
+            <div class="soft-card surface pad-tip stack-12">
+              <div class="tip-row">
+                <div class="tip-icon"><span class="material-symbols-outlined">grass</span></div>
+                <div style="flex:1;min-width:0">
+                  <div class="tip-head">
+                    <span class="slot-label">Condition</span>
+                    <span class="chip good">Okay</span>
+                  </div>
+                  <p class="tip-title">Soil is warm and a bit dry</p>
+                  <p class="body-14" style="margin:6px 0 0">Roots can still drink, but do not wait all week.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="proposed-block stack-10">
+              <span class="proposed-label">Proposed</span>
+              <div class="soft-card secondary-container pad-tip">
+                <div class="tip-row">
+                  <div class="tip-icon"><span class="material-symbols-outlined">water_drop</span></div>
+                  <div style="flex:1;min-width:0">
+                    <div class="tip-head">
+                      <span class="slot-label">Water today</span>
+                      <span class="chip warn">Water now</span>
+                    </div>
+                    <p class="tip-title">Patubigan ngayon</p>
+                    <p class="body-14" style="margin:6px 0 0">
+                      Crop plan listed tomorrow, but moisture is already low. Light morning water; skip tomorrow if soil recovers.
+                      Mark today’s slot on Crops when done.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="soft-card surface pad-tip stack-10">
+              <div class="tip-row">
+                <div class="tip-icon"><span class="material-symbols-outlined">science</span></div>
+                <div style="flex:1;min-width:0">
+                  <div class="tip-head">
+                    <span class="slot-label">Nutrients</span>
+                    <span class="chip good">Hold</span>
+                  </div>
+                  <p class="tip-title">Hold fertilizer until after water</p>
+                  <p class="body-14" style="margin:6px 0 0">Tomato · flowering. N looks okay for now.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="proposed-block stack-10">
+              <span class="proposed-label">Proposed</span>
+              <div class="soft-card surface pad-tip">
+                <div class="tip-row">
+                  <div class="tip-icon"><span class="material-symbols-outlined">eco</span></div>
+                  <div style="flex:1;min-width:0">
+                    <div class="tip-head">
+                      <span class="slot-label">Crop care</span>
+                      <span class="chip good">Flowering</span>
+                    </div>
+                    <p class="tip-title">Support stems · watch blossom drop in heat</p>
+                    <p class="body-14" style="margin:6px 0 0">
+                      Tomato is flowering. Tie soft stems if windy. Watch for blossom drop after hot afternoons.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <nav class="nav">
+            <div class="item active"><div class="ico-wrap"><span class="material-symbols-outlined">home</span></div>Home</div>
+            <a href="analytics.html"><div class="ico-wrap"><span class="material-symbols-outlined">insights</span></div>Analytics</a>
+            <a href="crops.html"><div class="ico-wrap"><span class="material-symbols-outlined">eco</span></div>Crops</a>
+            <div class="item"><div class="ico-wrap"><span class="material-symbols-outlined">person</span></div>Profile</div>
+          </nav>
+        </div>
+        <p class="caption"><a href="home.html">Open Home full page →</a> · + Crop care card (phase AI)</p>
+      </div>
+
+      <!-- CROPS PLAN -->
+      <div>
+        <div class="phone">
+          <header class="topbar">
+            <span class="material-symbols-outlined" style="color:var(--primary)">eco</span>
+            <h1 class="title">Crops</h1>
+            <button class="icon-btn" type="button"><span class="material-symbols-outlined">notifications</span></button>
+          </header>
+          <div class="content">
+            <div class="soft-card primary pad-lg plan-hero">
+              <span class="chip">ACTIVE PLAN</span>
+              <p class="crop-name">Tomato</p>
+              <p class="sci">Solanum lycopersicum</p>
+              <p class="meta">Day 38 of 75 · 37 days to harvest · Oct 14</p>
+            </div>
+            <div class="text-right"><button class="btn-text" type="button">Change crop</button></div>
+
+            <div class="section-header"><h2>Cultivation Phases</h2></div>
+            <div class="phase-strip stack-12">
+              <div class="phase-card">
+                <span class="material-symbols-outlined" style="color:var(--primary);font-size:18px">check_circle</span>
+                <p class="ph-title">Seedling</p>
+                <p class="tiny">14 days</p>
+              </div>
+              <div class="phase-card current">
+                <div style="display:flex;justify-content:space-between">
+                  <span class="material-symbols-outlined" style="color:var(--primary);font-size:18px">radio_button_checked</span>
+                  <span class="chip good">NOW</span>
+                </div>
+                <p class="ph-title">Flowering</p>
+                <p class="tiny">21 days</p>
+              </div>
+              <div class="phase-card">
+                <span class="material-symbols-outlined" style="color:var(--text-secondary);font-size:18px">circle</span>
+                <p class="ph-title">Fruiting</p>
+                <p class="tiny">25 days</p>
+              </div>
+            </div>
+
+            <div class="proposed-block stack-16">
+              <span class="proposed-label">Proposed</span>
+              <div class="section-header">
+                <span class="material-symbols-outlined">calendar_month</span>
+                <h2>This week’s water plan</h2>
+              </div>
+              <p class="tiny stack-4">7-day horizon · not daily watering · strip icons vary</p>
+              <div class="week-strip stack-12">
+                <div class="week-day done"><span>S</span><span class="material-symbols-outlined">check</span></div>
+                <div class="week-day today selected"><span>M</span><span class="material-symbols-outlined">water_drop</span></div>
+                <div class="week-day"><span>T</span><span class="material-symbols-outlined">visibility</span></div>
+                <div class="week-day"><span>W</span><span class="material-symbols-outlined">rainy</span></div>
+                <div class="week-day"><span>T</span><span class="material-symbols-outlined">visibility</span></div>
+                <div class="week-day"><span>F</span><span class="material-symbols-outlined">water_drop</span></div>
+                <div class="week-day"><span>S</span><span class="material-symbols-outlined">block</span></div>
+              </div>
+              <div class="soft-card surface today-detail">
+                <div>
+                  <div class="what">Water today · stop when top soil cools</div>
+                  <div class="why">~2–3 water days this week · Mon needed (soil dried fast)</div>
+                </div>
+                <button class="btn-slot" type="button" onclick="toast('Mon logged')">Mark watered</button>
+              </div>
+            </div>
+
+            <div class="section-header stack-16">
+              <span class="material-symbols-outlined">psychology</span>
+              <h2>Care insights</h2>
+            </div>
+            <p class="muted stack-4" style="font-size:14px">How to maintain this crop and soil in the current phase.</p>
+            <div class="soft-card stack-12">
+              <p class="body-14" style="margin:0">Keep water steady while flowers set. Prefer morning water.</p>
+            </div>
+            <div class="soft-card stack-10">
+              <div class="tip-row">
+                <div class="tip-icon"><span class="material-symbols-outlined">water_drop</span></div>
+                <div>
+                  <div style="font-weight:700">Steady moisture</div>
+                  <p class="tip-title care-action">Light morning water today</p>
+                  <p class="tiny" style="margin:4px 0 0">Do not flood after heavy rain on Wed.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <nav class="nav">
+            <a href="home.html"><div class="ico-wrap"><span class="material-symbols-outlined">home</span></div>Home</a>
+            <a href="analytics.html"><div class="ico-wrap"><span class="material-symbols-outlined">insights</span></div>Analytics</a>
+            <div class="item active"><div class="ico-wrap"><span class="material-symbols-outlined">eco</span></div>Crops</div>
+            <div class="item"><div class="ico-wrap"><span class="material-symbols-outlined">person</span></div>Profile</div>
+          </nav>
+        </div>
+        <p class="caption"><a href="crops.html">Open Crops full page →</a> · water plan + Care insights</p>
+      </div>
+
+      <!-- CROPS NO PLANT -->
+      <div>
+        <div class="phone">
+          <header class="topbar">
+            <span class="material-symbols-outlined" style="color:var(--primary)">eco</span>
+            <h1 class="title">Crops</h1>
+            <button class="icon-btn" type="button"><span class="material-symbols-outlined">notifications</span></button>
+          </header>
+          <div class="content">
+            <div class="soft-card">
+              <div style="font-weight:800;font-size:13px;margin-bottom:10px">Latest soil</div>
+              <div class="chip-wrap">
+                <span class="chip warn">Moisture 28%</span>
+                <span class="chip good">pH 6.4</span>
+                <span class="chip neutral">Temp 29°C</span>
+                <span class="chip neutral">N 42</span>
+              </div>
+            </div>
+            <div class="soft-card stack-12">
+              <div style="font-weight:800;font-size:13px;margin-bottom:10px">This week’s weather</div>
+              <div class="chip-wrap">
+                <span class="chip good">Sunny · 32°C</span>
+                <span class="chip neutral">Rain 40% Tue</span>
+                <span class="chip neutral">PH wet season</span>
+              </div>
+            </div>
+
+            <div class="proposed-block stack-16">
+              <span class="proposed-label">Proposed</span>
+              <div class="empty-box">
+                <h3>No weekly water plan yet</h3>
+                <p class="muted" style="margin:0 0 14px;font-size:14px">
+                  Schedule, checklist, and diary appear after you plant. Home still advises water today.
+                </p>
+                <button class="btn btn-filled" type="button">Select a crop</button>
+              </div>
+            </div>
+
+            <div class="section-header stack-16"><h2>Suitable crops</h2></div>
+            <div class="soft-card zero surface stack-12">
+              <div class="match-hero">
+                <span class="pct">82% Match</span>
+                <p class="name">Tomato</p>
+              </div>
+              <div class="match-body">
+                <p class="body-14" style="margin:0">Soil + forecast fit flowering needs.</p>
+                <button class="btn-select" type="button">Select crop</button>
+              </div>
+            </div>
+          </div>
+          <nav class="nav">
+            <a href="home.html"><div class="ico-wrap"><span class="material-symbols-outlined">home</span></div>Home</a>
+            <a href="analytics.html"><div class="ico-wrap"><span class="material-symbols-outlined">insights</span></div>Analytics</a>
+            <div class="item active"><div class="ico-wrap"><span class="material-symbols-outlined">eco</span></div>Crops</div>
+            <div class="item"><div class="ico-wrap"><span class="material-symbols-outlined">person</span></div>Profile</div>
+          </nav>
+        </div>
+        <p class="caption"><a href="crops-no-planting.html">Open no-planting →</a></p>
+      </div>
+
+      <!-- ANALYTICS -->
+      <div>
+        <div class="phone">
+          <header class="topbar">
+            <span class="material-symbols-outlined" style="color:var(--primary)">insights</span>
+            <h1 class="title">Analytics</h1>
+            <button class="icon-btn" type="button"><span class="material-symbols-outlined">notifications</span></button>
+          </header>
+          <div class="content">
+            <h2 class="page-title">Soil over time</h2>
+            <p class="muted" style="margin:4px 0 0;font-size:14px">
+              History, averages, and what to do next — not today’s live reading.
+            </p>
+            <div class="filter-bar stack-16">
+              <span class="filter-pill on">This week</span>
+              <span class="filter-pill">Moisture</span>
+            </div>
+
+            <div class="soft-card surface stack-16">
+              <strong style="font-size:14px">Moisture trend</strong>
+              <div class="bars">
+                <div class="bar irrigated" style="height:42%" data-d="S"></div>
+                <div class="bar irrigated" style="height:35%" data-d="M"></div>
+                <div class="bar" style="height:48%" data-d="T"></div>
+                <div class="bar" style="height:70%" data-d="W"></div>
+                <div class="bar" style="height:62%" data-d="T"></div>
+                <div class="bar" style="height:55%" data-d="F"></div>
+                <div class="bar" style="height:50%" data-d="S"></div>
+              </div>
+              <p class="tiny">Dark bars = days with logged irrigation (proposed overlay)</p>
+            </div>
+
+            <div class="proposed-block stack-16">
+              <span class="proposed-label">Proposed</span>
+              <div class="section-header"><h2>Irrigation this week</h2></div>
+              <div class="stat-grid stack-12">
+                <div class="soft-card surface stat"><div class="n">2</div><div class="l">Times logged</div></div>
+                <div class="soft-card surface stat"><div class="n">1</div><div class="l">Skipped (rain)</div></div>
+              </div>
+              <div class="section-header stack-12" style="margin-bottom:8px"><h2 style="font-size:18px">Diary history</h2></div>
+              <div class="timeline">
+                <div class="event"><div><div class="t">Mon</div><div class="d">7:20</div></div><div><strong>Irrigation</strong><div class="d">From Home · ahead of plan</div></div></div>
+                <div class="event"><div><div class="t">Sun</div><div class="d">6:40</div></div><div><strong>Irrigation</strong><div class="d">From Crops · plan slot</div></div></div>
+              </div>
+            </div>
+
+            <div class="section-header stack-16">
+              <span class="material-symbols-outlined">psychology</span>
+              <h2>Advice for this window</h2>
+            </div>
+            <div class="soft-card stack-12">
+              <p class="body-14" style="margin:0">You watered early Mon because soil dried faster than the weekly plan. After Wed rain, moisture held longer.</p>
+            </div>
+            <div class="soft-card stack-10">
+              <div class="tip-row">
+                <div class="tip-icon"><span class="material-symbols-outlined">water_drop</span></div>
+                <div>
+                  <div class="slot-label">Irrigation pattern</div>
+                  <p class="tip-title" style="font-size:16px">Keep morning slots; skip after ≥5 mm rain</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <nav class="nav">
+            <a href="home.html"><div class="ico-wrap"><span class="material-symbols-outlined">home</span></div>Home</a>
+            <div class="item active"><div class="ico-wrap"><span class="material-symbols-outlined">insights</span></div>Analytics</div>
+            <a href="crops.html"><div class="ico-wrap"><span class="material-symbols-outlined">eco</span></div>Crops</a>
+            <div class="item"><div class="ico-wrap"><span class="material-symbols-outlined">person</span></div>Profile</div>
+          </nav>
+        </div>
+        <p class="caption"><a href="analytics.html">Open Analytics full page →</a> · read-only patterns</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script>
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      clearTimeout(window.__t);
+      window.__t = setTimeout(() => el.classList.remove("show"), 1800);
+    }
+  </script>
+</body>
+</html>

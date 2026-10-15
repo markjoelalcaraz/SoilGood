@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SoilGood — splash then login sample</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,700&family=Nunito+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      display: grid; place-items: center;
+      background: #e7eee4;
+      font-family: "Nunito Sans", sans-serif;
+      color: #243028;
+    }
+    .wrap { display: grid; gap: 16px; justify-items: center; }
+    .phone {
+      width: min(100vw, 390px); height: min(100vh, 780px);
+      background: #f7fbff; border-radius: 28px; overflow: hidden;
+      position: relative; box-shadow: 0 16px 40px rgba(36, 48, 40, 0.12);
+    }
+    .splash, .login { position: absolute; inset: 0; display: flex; flex-direction: column; }
+    .splash {
+      z-index: 2;
+      background: linear-gradient(180deg, #f3fbff 0%, #fffaf2 55%, #e7f6c9 100%);
+      align-items: center; text-align: center;
+      animation: leave 0.45s ease 2.35s forwards;
+    }
+    .mark { margin-top: auto; display: flex; flex-direction: column; align-items: center; padding: 0 24px; }
+    .leaf {
+      font-size: 64px; color: #62a844;
+      opacity: 0; transform: scale(0.7);
+      animation: pop 0.55s cubic-bezier(.2,.8,.2,1) 0.45s forwards;
+    }
+    .word {
+      margin-top: 8px; font-family: Literata, serif; font-size: 42px; font-weight: 700;
+      opacity: 0; transform: translateY(12px);
+      animation: rise 0.5s ease 0.7s forwards;
+    }
+    .tag { margin: 8px 0 0; color: #5c6760; font-weight: 700; opacity: 0; animation: rise 0.45s ease 0.95s forwards; }
+    .hills { width: 100%; height: 180px; margin-top: auto; overflow: hidden; }
+    .hills svg { width: 100%; height: 180px; display: block; }
+    .hill-back, .hill-front { transform: translateY(110%); }
+    .hill-back { animation: hill 0.7s cubic-bezier(.2,.7,.2,1) 0.05s forwards; }
+    .hill-front { animation: hill 0.75s cubic-bezier(.2,.7,.2,1) 0.18s forwards; }
+    .login { background: #f6f8f3; }
+    .hero { position: relative; height: 280px; overflow: hidden; background: #cfe3b8; }
+    .hero img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transform: scale(1.22) translateY(16px);
+      animation: photo 1.15s cubic-bezier(.2,.7,.2,1) 2.4s forwards;
+    }
+    .hero-bar {
+      position: absolute; z-index: 1; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; gap: 8px;
+      padding: 16px 16px 28px;
+      color: #fff; font-weight: 800;
+      background: linear-gradient(180deg, rgba(36,48,40,.45), transparent);
+      opacity: 0;
+      animation: rise 0.4s ease 2.55s forwards;
+    }
+    .sheet {
+      margin-top: -28px; position: relative; z-index: 1;
+      background: #fff; border-radius: 28px 28px 0 0;
+      padding: 22px 20px 28px; flex: 1;
+      box-shadow: 0 -8px 24px rgba(36, 48, 40, 0.06);
+      transform: translateY(36px); opacity: 0;
+      animation: sheet 0.55s cubic-bezier(.2,.8,.2,1) 2.7s forwards;
+    }
+    .sheet h2 { margin: 0; font-family: Literata, serif; font-size: 32px; }
+    .sub { margin: 6px 0 16px; color: #5c6760; font-weight: 700; }
+    .field {
+      display: flex; align-items: center; gap: 8px;
+      border-radius: 16px; padding: 14px; margin-bottom: 10px;
+      background: #f3f7f1; font-weight: 700;
+    }
+    .field span { color: #5c6760; }
+    .signin {
+      width: 100%; margin-top: 6px; border: 0; border-radius: 999px;
+      background: #6aaf45; color: #fff; font: inherit; font-weight: 800;
+      min-height: 52px;
+    }
+    .fine { text-align: center; color: #5c6760; font-weight: 700; margin-top: 14px; }
+    #replay {
+      border: 0; background: #243028; color: #fff; font: inherit; font-weight: 800;
+      border-radius: 999px; padding: 12px 18px; cursor: pointer;
+    }
+    @keyframes hill { to { transform: translateY(0); } }
+    @keyframes pop { to { opacity: 1; transform: scale(1); } }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+    @keyframes leave { to { opacity: 0; visibility: hidden; } }
+    @keyframes photo { to { transform: scale(1) translateY(0); } }
+    @keyframes sheet { to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="phone" id="phone">
+      <div class="login">
+        <div class="hero">
+          <div class="hero-bar">
+            <span class="material-symbols-outlined">arrow_back</span>
+            SoilGood
+          </div>
+          <img src="../reinvent_ui/assets/farm-banner.jpg" alt="" />
+        </div>
+        <div class="sheet">
+          <h2>Welcome back</h2>
+          <p class="sub">Sign in to access your farm dashboard</p>
+          <div class="field"><span class="material-symbols-outlined">mail</span> juan@farm.ph</div>
+          <div class="field"><span class="material-symbols-outlined">lock</span> Password</div>
+          <button class="signin" type="button">Sign In</button>
+          <p class="fine">Don’t have an account? Create Account</p>
+        </div>
+      </div>
+      <div class="splash">
+        <div class="mark">
+          <span class="material-symbols-outlined leaf">eco</span>
+          <div class="word">SoilGood</div>
+          <p class="tag">Know your soil before you water</p>
+        </div>
+        <div class="hills">
+          <svg viewBox="0 0 390 180" aria-hidden="true">
+            <path class="hill-back" d="M0 70 C90 40 150 90 230 60 C300 36 340 50 390 30 L390 180 L0 180Z" fill="#8ed15a"/>
+            <path class="hill-front" d="M0 110 C100 86 160 130 240 104 C310 84 350 96 390 82 L390 180 L0 180Z" fill="#6fbf45"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="replay">Play again</button>
+  </div>
+  <script>
+    document.getElementById("replay").addEventListener("click", () => {
+      const phone = document.getElementById("phone");
+      const fresh = phone.cloneNode(true);
+      phone.replaceWith(fresh);
+      fresh.id = "phone";
+    });
+  </script>
+</body>
+</html>

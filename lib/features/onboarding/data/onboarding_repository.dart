@@ -1,15 +1,17 @@
-/// Data layer for first-run onboarding: profile, farm pin, device claim, and next-step checks.
+/// Data layer for first-run onboarding: profile, farm pin, soil texture, device claim.
 ///
-/// AuthGate asks this repository which onboarding screen to show. The three
-/// onboarding pages call it to save rows to Supabase. No UI here.
+/// AuthGate asks this repository which onboarding screen to show. Onboarding
+/// pages save rows to Supabase. Device claim uses RPC `claim_device`
+/// (lab-preprovisioned kits). No UI here.
 library;
 
-import 'dart:math';
-
+import '../../../core/soil/soil_series.dart';
+import '../../../core/soil/soil_texture.dart';
 import '../../../core/supabase/supabase_bootstrap.dart';
+import '../logic/device_claim_rules.dart';
+import '../logic/onboarding_step_rules.dart';
 
-/// Which onboarding screen the signed-in user should see next.
-enum OnboardingStep { profile, location, device, done }
+export '../logic/onboarding_step_rules.dart' show OnboardingStep;
 
 /// Reads/writes profile, farm, and device rows used by onboarding.
 class OnboardingRepository {
@@ -27,25 +29,34 @@ class OnboardingRepository {
         .maybeSingle();
 
     final firstName = (profile?['first_name'] as String?)?.trim() ?? '';
-    if (firstName.isEmpty) return OnboardingStep.profile;
 
     final farms = await supabase
         .from('farms')
-        .select('id')
+        .select('id, soil_texture')
         .eq('owner_id', uid)
         .limit(1);
 
-    if ((farms as List).isEmpty) return OnboardingStep.location;
+    final farmList = farms as List;
+    final hasFarm = farmList.isNotEmpty;
+    final soilTexture = hasFarm ? farmList.first['soil_texture'] as String? : null;
 
-    final farmId = farms.first['id'] as String;
-    final devices = await supabase
-        .from('devices')
-        .select('id')
-        .eq('farm_id', farmId)
-        .limit(1);
+    var hasDevice = false;
+    if (hasFarm) {
+      final farmId = farmList.first['id'] as String;
+      final devices = await supabase
+          .from('devices')
+          .select('id')
+          .eq('farm_id', farmId)
+          .limit(1);
+      hasDevice = (devices as List).isNotEmpty;
+    }
 
-    if ((devices as List).isEmpty) return OnboardingStep.device;
-    return OnboardingStep.done;
+    return nextOnboardingStep(
+      firstName: firstName,
+      hasFarm: hasFarm,
+      soilTexture: soilTexture,
+      hasDevice: hasDevice,
+    );
   }
 
   /// Loads the current profile fields for edit forms.
@@ -134,17 +145,11 @@ class OnboardingRepository {
     return row['id'] as String;
   }
 
-  /// Random hex token the ESP32 sends with the anon key (not service_role).
-  String _newIngestToken() {
-    final r = Random.secure();
-    final bytes = List<int>.generate(16, (_) => r.nextInt(256));
-    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  }
-
-  /// Links an ESP32 `device_uid` to the user's farm. Returns `ingest_token`.
-  Future<String> claimDevice({
-    required String deviceUid,
-    String name = 'SoilGood Sensor',
+  /// Saves required texture + optional curated soil series on the primary farm.
+  Future<void> saveSoilPhysicalProfile({
+    required SoilTexture texture,
+    SoilSeries? series,
+    String? seriesOther,
   }) async {
     final uid = supabase.auth.currentUser?.id;
     if (uid == null) {
@@ -158,54 +163,37 @@ class OnboardingRepository {
         .limit(1);
 
     if ((farms as List).isEmpty) {
-      throw StateError('Create a farm location before claiming a device.');
+      throw StateError('Save your farm location before choosing soil type.');
     }
 
     final farmId = farms.first['id'] as String;
-    final uidTrim = deviceUid.trim();
+    final other = seriesOther?.trim();
+    await supabase.from('farms').update({
+      'soil_texture': texture.wire,
+      'soil_series': series?.wire,
+      'soil_series_other':
+          series == SoilSeries.other && other != null && other.isNotEmpty
+              ? other
+              : null,
+    }).eq('id', farmId);
+  }
 
-    final existing = await supabase
-        .from('devices')
-        .select('id, farm_id, ingest_token')
-        .eq('device_uid', uidTrim)
-        .maybeSingle();
-
-    if (existing != null) {
-      if (existing['farm_id'] != farmId) {
-        throw StateError('This device is already linked to another farm.');
-      }
-      final existingToken = (existing['ingest_token'] as String?)?.trim() ?? '';
-      if (existingToken.isNotEmpty) {
-        await supabase
-            .from('devices')
-            .update({'status': 'active', 'name': name})
-            .eq('id', existing['id']);
-        return existingToken;
-      }
-      final updated = await supabase
-          .from('devices')
-          .update({
-            'status': 'active',
-            'name': name,
-            'ingest_token': _newIngestToken(),
-          })
-          .eq('id', existing['id'])
-          .select('ingest_token')
-          .single();
-      return updated['ingest_token'] as String;
+  /// Links a lab-preprovisioned kit via sticker claim code. Never returns ingest_token.
+  Future<void> claimDevice({required String claimCode}) async {
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) {
+      throw StateError('No signed-in user.');
     }
 
-    final inserted = await supabase
-        .from('devices')
-        .insert({
-          'farm_id': farmId,
-          'device_uid': uidTrim,
-          'name': name,
-          'status': 'active',
-          'ingest_token': _newIngestToken(),
-        })
-        .select('ingest_token')
-        .single();
-    return inserted['ingest_token'] as String;
+    final code = normalizeClaimCode(claimCode);
+    if (code == null) {
+      throw StateError(kEmptyClaimCodeMessage);
+    }
+
+    try {
+      await supabase.rpc('claim_device', params: {'p_claim_code': code});
+    } on Object catch (e) {
+      throw StateError(friendlyClaimError(e));
+    }
   }
 }

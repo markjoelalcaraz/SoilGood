@@ -2,7 +2,7 @@
 -- Paste into Supabase SQL Editor and Run.
 -- Safe to re-run: each run inserts a new "latest" snapshot.
 --
--- Needs: a claimed device from onboarding (devices row).
+-- Needs: a claimed device (lab provision + farmer claim_code, or existing farm_id set).
 -- Seeds all 8-in-1 fields: moisture, pH, temperature, EC, salinity, N, P, K.
 -- Values sit inside Rice / Corn / Tomato catalog ranges so Crops can match.
 

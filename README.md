@@ -6,6 +6,7 @@ IoT and AI-assisted Flutter app for real-time soil monitoring, weather-aware dec
 
 ### Context
 - [PROJECT_OVERVIEW.md](docs/context/PROJECT_OVERVIEW.md)
+- [SYSTEM_FLOWCHART.md](docs/context/SYSTEM_FLOWCHART.md) — master Mermaid process maps
 - [FEATURES.md](docs/context/FEATURES.md)
 - [ARCHITECTURE.md](docs/context/ARCHITECTURE.md)
 - [BACKEND.md](docs/context/BACKEND.md)
@@ -16,13 +17,24 @@ IoT and AI-assisted Flutter app for real-time soil monitoring, weather-aware dec
 
 ### Pages
 - Template: [docs/pages/_TEMPLATE.md](docs/pages/_TEMPLATE.md)
-- One file per page/feature when built
+- Admin Devices (web): [docs/pages/admin_devices.md](docs/pages/admin_devices.md)
+- Admin Analytics (web ops): [docs/pages/admin_analytics.md](docs/pages/admin_analytics.md)
+- Lab Flasher (Windows USB): [docs/pages/lab_flasher.md](docs/pages/lab_flasher.md) · app: [tooling/lab_flasher](tooling/lab_flasher)
 
 ## Run
 
 ```bash
 flutter pub get
 flutter run
+```
+
+Lab Flasher (Windows, admin USB station):
+
+```bash
+cd tooling/lab_flasher
+copy .env.example .env   # add SUPABASE_* + WIFI_*
+flutter pub get
+flutter run -d windows
 ```
 
 ## Stack

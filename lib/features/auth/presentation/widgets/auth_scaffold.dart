@@ -17,6 +17,7 @@ class AuthScaffold extends StatelessWidget {
     required this.subtitle,
     required this.form,
     required this.footer,
+    this.header,
     super.key,
   });
 
@@ -24,6 +25,7 @@ class AuthScaffold extends StatelessWidget {
   final String subtitle;
   final Widget form;
   final Widget footer;
+  final Widget? header;
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +71,13 @@ class AuthScaffold extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (header != null) ...[
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: header,
+                            ),
+                            const SizedBox(height: 20),
+                          ],
                           Text(
                             'SoilGood',
                             style: GoogleFonts.literata(

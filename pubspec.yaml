@@ -41,9 +41,13 @@ dependencies:
   flutter_map: ^8.3.1
   latlong2: ^0.10.1
   http: ^1.6.0
+  shared_preferences: ^2.5.5
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -64,6 +68,8 @@ flutter:
   assets:
     - .env
     - supabase/functions/soilgood-insights/insights.json
+    - assets/crops/
+    - assets/farm/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

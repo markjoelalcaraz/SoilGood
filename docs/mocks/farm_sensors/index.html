@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SoilGood — sensor code on Home and Farm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,700&family=Nunito+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f6f8f3;
+      --card: #fff;
+      --ink: #243028;
+      --muted: #5c6760;
+      --green: #62a844;
+      --deep: #4e9434;
+      --soft: #c8eeb0;
+      --frame: #e7f3df;
+      --warn: #b83230;
+      --warn-bg: #ffdad8;
+      --ok: #e7f0e4;
+      --line: #c4c8bc;
+    }
+    * { box-sizing: border-box; }
+    html { scrollbar-width: thin; scrollbar-color: rgba(74, 78, 74, 0.35) transparent; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(74, 78, 74, 0.28); border-radius: 8px; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Nunito Sans", system-ui, sans-serif;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 28px 16px 48px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-family: Literata, Georgia, serif;
+      font-size: 32px;
+    }
+    .lede { margin: 0 0 22px; color: var(--muted); font-weight: 700; max-width: 640px; }
+    .row { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+    .col { width: 360px; max-width: 100%; }
+    .label {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--deep);
+    }
+    .phone {
+      background: var(--card);
+      border-radius: 28px;
+      padding: 18px 16px 20px;
+      box-shadow: 0 10px 30px rgba(36, 48, 40, 0.06);
+    }
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .brand {
+      font-family: Literata, Georgia, serif;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .bell {
+      width: 36px; height: 36px; border-radius: 12px;
+      background: var(--bg); display: grid; place-items: center;
+      font-size: 16px;
+    }
+    .farm-name {
+      margin: 0;
+      font-family: Literata, Georgia, serif;
+      font-size: 28px;
+    }
+    .sub { margin: 2px 0 12px; color: var(--muted); font-weight: 700; }
+    .alert {
+      background: var(--warn-bg);
+      border-radius: 16px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+    .alert .crop { font-weight: 800; font-size: 13px; color: var(--warn); }
+    .alert strong { display: block; margin-top: 2px; font-size: 16px; }
+    .alert span { color: var(--muted); font-weight: 700; }
+    .quiet {
+      background: var(--ok);
+      border-radius: 16px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .metric {
+      background: var(--bg);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    .metric b { display: block; font-size: 20px; }
+    .metric em { font-style: normal; color: var(--muted); font-weight: 700; font-size: 12px; }
+    .map {
+      background: var(--frame);
+      border-radius: 22px;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .map.selected { grid-template-columns: 1.35fr 0.8fr; }
+    .plot {
+      position: relative;
+      min-height: 132px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid transparent;
+    }
+    .map.selected .plot.dim { opacity: 0.45; min-height: 96px; }
+    .map.selected .plot.on { min-height: 210px; border-color: #fff; grid-row: span 2; }
+    .pill {
+      position: absolute;
+      top: 8px; left: 8px;
+      background: #fff;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .flag {
+      position: absolute;
+      left: 8px; bottom: 8px;
+      background: var(--warn-bg);
+      color: var(--warn);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .tomatoes {
+      background:
+        repeating-linear-gradient(90deg, #8d5a3c 0 18px, #d7e7b0 18px 28px);
+    }
+    .tomatoes::after, .sili::after {
+      content: "";
+      position: absolute; inset: 28px 10px 16px;
+      background:
+        radial-gradient(circle at 20% 30%, #e23b3b 0 4px, transparent 5px),
+        radial-gradient(circle at 55% 60%, #e23b3b 0 4px, transparent 5px),
+        radial-gradient(circle at 80% 35%, #e23b3b 0 4px, transparent 5px),
+        radial-gradient(circle at 35% 75%, #3d8f3a 0 7px, transparent 8px),
+        radial-gradient(circle at 70% 80%, #3d8f3a 0 7px, transparent 8px);
+    }
+    .sili::after {
+      background:
+        radial-gradient(circle at 30% 40%, #d23a3a 0 5px, transparent 6px),
+        radial-gradient(circle at 62% 55%, #d23a3a 0 5px, transparent 6px),
+        radial-gradient(circle at 45% 75%, #2f8a34 0 8px, transparent 9px);
+    }
+    .corn {
+      background:
+        radial-gradient(circle at 30% 40%, #7fbf45 0 16px, transparent 17px),
+        radial-gradient(circle at 70% 65%, #7fbf45 0 16px, transparent 17px),
+        repeating-linear-gradient(#d6c15a, #e6d27a 12px, #cbb24e 13px);
+    }
+    .palay {
+      background:
+        repeating-linear-gradient(90deg, #b7e3ef 0 16px, #d9f3c8 16px 22px);
+    }
+    .sili { background: repeating-linear-gradient(90deg, #8d5a3c 0 18px, #cfe7a4 18px 28px); }
+    .note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .sensors { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .sensor {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+    .sensor b { display: block; }
+    .sensor em { font-style: normal; color: var(--muted); font-weight: 700; font-size: 13px; }
+    .sensor.low { background: var(--warn-bg); border-color: transparent; }
+    .sensor.low b { color: var(--warn); }
+    .pct { font-weight: 800; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Sensor code mock</h1>
+    <p class="lede">One farm. Tomatoes has two sensors. Only SG-4K91 is low. Home names that code. The Farm plot lists both codes when Tomatoes is selected.</p>
+    <div class="row">
+      <div class="col">
+        <p class="label">Home · this farm</p>
+        <section class="phone">
+          <div class="top">
+            <div class="brand">SoilGood</div>
+            <div class="bell">🔔</div>
+          </div>
+          <h2 class="farm-name">My farm</h2>
+          <p class="sub">1 plot needs a look</p>
+          <div class="alert">
+            <div class="crop">Tomatoes</div>
+            <strong>Sensor (SG-4K91) area is low</strong>
+            <span>Moisture 22%</span>
+          </div>
+          <div class="quiet">Sensor (SG-7K2M) on tomatoes is fine · 41%</div>
+          <div class="metrics">
+            <div class="metric"><em>SG-4K91 moisture</em><b>22%</b></div>
+            <div class="metric"><em>SG-4K91 pH</em><b>6.2</b></div>
+          </div>
+        </section>
+      </div>
+      <div class="col">
+        <p class="label">Farm · Tomatoes selected</p>
+        <section class="phone">
+          <h2 class="farm-name">My farm</h2>
+          <p class="sub">Tap a plot. Sensors stay on that crop.</p>
+          <div class="map selected">
+            <div class="plot tomatoes on">
+              <span class="pill">Tomatoes</span>
+              <span class="flag">SG-4K91 low</span>
+            </div>
+            <div class="plot corn dim"><span class="pill">Corn</span></div>
+            <div class="plot palay dim"><span class="pill">Palay</span></div>
+            <div class="plot sili dim"><span class="pill">Sili</span></div>
+          </div>
+          <div class="sensors">
+            <div class="sensor">
+              <div><b>Sensor (SG-7K2M)</b><em>This area is fine</em></div>
+              <div class="pct">41%</div>
+            </div>
+            <div class="sensor low">
+              <div><b>Sensor (SG-4K91) area is low</b><em>Moisture</em></div>
+              <div class="pct">22%</div>
+            </div>
+          </div>
+          <p class="note">Corn, palay, and sili stay dim. Their sensors do not appear under tomatoes.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

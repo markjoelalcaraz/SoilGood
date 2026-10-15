@@ -1,5 +1,5 @@
 {
-  "prompt_version": "insights_v4",
+  "prompt_version": "insights_v6",
   "send_to_model": ["voice", "prompts.<page>", "bands", "irrigation", "output"],
   "never_send": ["meta", "sensor_valid", "regen", "cache_hours", "extremes"],
   "meta": {
@@ -64,17 +64,17 @@
     "overview_sentences": [2, 4],
     "soil_health_score": [0, 100],
     "priority": ["low", "medium", "high"],
-    "types": ["irrigation", "nutrient", "soil_management", "crop_suitability"]
+    "types": ["irrigation", "nutrient", "soil_management", "crop_suitability", "crop_care"]
   },
   "prompts": {
     "home": {
-      "job": "Three short tips for today: Condition, Water today, and Nutrients when a crop is present.",
-      "max_recommendations": 3,
-      "allowed_types": ["soil_management", "irrigation", "nutrient"],
+      "job": "Tips for today: Condition, Water today, Nutrients, and Crop care when a crop is present.",
+      "max_recommendations": 4,
+      "allowed_types": ["soil_management", "irrigation", "nutrient", "crop_care"],
       "rules": [
         "Follow voice: simple English, caring tone by default, 2 to 4 short sentences in description. Title short. recommended_action a few plain words.",
-        "Return exactly one soil_management, one irrigation, and one nutrient tip when crop and phase are in the user payload.",
-        "If no crop is in the payload, return only soil_management and irrigation. Do not invent nutrient or fertilizer advice.",
+        "Return exactly one soil_management, one irrigation, one nutrient, and one crop_care tip when crop and phase are in the user payload.",
+        "If no crop is in the payload, return only soil_management and irrigation. Do not invent nutrient, fertilizer, or crop_care advice.",
         "Condition (soil_management): say what is wrong with the soil or that soil looks fine. Talk about soil and weather only when the reading is valid.",
         "Mention sensor, probe, or bad reading ONLY when validation is error or warning or the reading looks broken. If the reading is fine, never mention the sensor, even to say it is okay.",
         "Water today (irrigation): recommended_action is one of: water, wait, check sensor.",
@@ -86,10 +86,11 @@
         "If temp_band is critical_low or critical_high, Condition must priority high with urgent wording for heat or cold. Do not invent numbers.",
         "If temp_band or ph_band or ec_band is low or high (not critical), Condition priority medium, firm but calm.",
         "If Condition bands are all ok, Condition priority low or medium, calm soil looks fine.",
-        "Escalate only the matching card: critical moisture → Water today; critical temp/pH/EC/salt → Condition. Do not make all three tips critical unless each has a critical reason.",
-        "If Condition is check sensor, Water and Nutrients must also say check sensor and must not give a farm schedule.",
+        "Escalate only the matching card: critical moisture → Water today; critical temp/pH/EC/salt → Condition. Do not make all tips critical unless each has a critical reason.",
+        "If Condition is check sensor, Water, Nutrients, and Crop care must also say check sensor and must not give a farm schedule.",
         "Nutrients: use crop name and growing stage from the payload. No exact kg per hectare. No clock times. No referral to any person or office. Low N/P/K only — do not invent too-high nutrient panic.",
-        "Do not repeat the same paragraph on all three cards.",
+        "Crop care (crop_care): phase chores only for this crop and growing stage — mulch, prune, hill up, weed, shade, support, protect flowers. Never order watering or fertilizer here; those belong on Water today and Nutrients.",
+        "Do not repeat the same paragraph on all cards.",
         "No em dash. No markdown. No chatbot phrases. Never give a clock time. Never invent soil numbers. Never use history or monthly averages."
       ]
     },
@@ -108,25 +109,35 @@
       ]
     },
     "crops": {
-      "catalog": {
-        "job": "Match the latest 8-in-1 soil snapshot plus current forecast to the crops catalog locally. Do not call the model for catalog scores.",
-        "call_model": false,
+      "match": {
+        "job": "Rank catalog crops for this farm using only the grounded per-crop facts in the payload (ranges, bands, season, rain). Return suitability scores.",
+        "call_model": true,
+        "max_matches": 17,
+        "allowed_types": ["crop_suitability"],
         "rules": [
-          "Score against public.crops min/max (including salinity) plus Open-Meteo season, rain, and air temp. Not this file.",
-          "Seasonal fit from history stays on Analytics, not this tab."
+          "Follow voice: simple English, caring tone. No markdown. No emoji. No em dash.",
+          "Use ONLY crop_id values from payload.catalog. Never invent a crop name or id.",
+          "Never invent soil or weather numbers. Base every score and reason on the provided in_range flags, bands, local_percent hint, season, and rain facts.",
+          "Return JSON with overview (2 to 3 short sentences) and matches array. Each match: crop_id, score 0-100 integer, reason 1 to 2 short sentences.",
+          "Score high when most checks are in range and bands are ok. Score low when many are out of range or any band starts with critical_. Do not copy local_percent blindly; use it as a weak hint only.",
+          "Include every catalog crop in matches (one entry per crop_id). Rank is by score descending in the array.",
+          "Do not return irrigation or nutrient orders. Do not give clock times. Do not refer the farmer to any office.",
+          "Seasonal fit from multi-week history stays on Analytics, not this job."
         ]
       },
       "care": {
-        "job": "How to maintain this selected crop and soil in the current cultivation phase. Watering, fertilizer, and soil care — not a catalog score.",
+        "job": "Phase care chores for the selected crop — mulch, prune, weed, hill, support. Not watering or fertilizer orders (those stay on Home).",
         "max_recommendations": 3,
-        "allowed_types": ["irrigation", "nutrient", "soil_management"],
+        "allowed_types": ["soil_management"],
         "rules": [
           "Follow voice: simple English, caring tone by default.",
-          "Use classified bands, crop name, and current phase already in the user payload.",
-          "If any band starts with critical_, use urgent wording and priority high on the matching tip.",
-          "Watering and nutrient advice must fit this crop and phase, not Home's same-day water/wait line.",
+          "Use crop name and current phase from the user payload. Soil bands may support urgency but tips must stay phase chores.",
+          "Return only soil_management tips. Do not return irrigation or nutrient types.",
+          "Never order watering, wait-for-rain, or fertilizer here. Home owns Water today and Nutrients.",
+          "Focus on phase work: mulch, prune, hill up, weed, shade, support plants, protect flowers or fruit.",
+          "If any band starts with critical_, still keep priority high wording on care urgency (protect crop), but do not invent water or fertilizer doses.",
           "Never give a clock time. Never invent soil numbers. Never score the crops catalog.",
-          "If validation is error/warning, say check the sensor before changing watering or fertilizer.",
+          "If validation is error/warning, say check the sensor before heavy field work.",
           "Never refer the farmer to a farm officer or office."
         ]
       }
@@ -176,11 +187,13 @@
   "regen": {
     "home": "Call the model only if no saved row, story fingerprint (bands + rain advice + crop/phase + crop range token) changed, valid_until passed, or prompt version changed. A new soil_reading_id alone is not enough when the story is the same.",
     "analytics": "Call the model only if no row for that period_start+period_end, valid_until passed, or a newer daily bucket exists.",
-    "crops": "Call the model only if no saved row for this planting, soil_reading_id changed, valid_until passed, phase changed, or prompt version changed."
+    "crops": "Call the model only if no saved row for this planting, soil_reading_id changed, valid_until passed, phase changed, or prompt version changed.",
+    "crops_match": "Call the model only if no saved crops_match row, soil_reading_id changed, weather story fingerprint changed, valid_until passed, or prompt version changed."
   },
   "cache_hours": {
     "home": 12,
     "analytics": 24,
-    "crops": 12
+    "crops": 12,
+    "crops_match": 12
   }
 }

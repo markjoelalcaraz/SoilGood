@@ -4,6 +4,8 @@
 /// use these buckets — not live Home readings and not every 15-minute row.
 library;
 
+import '../../home/data/soil_reading.dart';
+
 /// Daily avg/min/max for all 8 soil parameters plus how many raw rows that day.
 class DailySoilBucket {
   const DailySoilBucket({
@@ -159,6 +161,18 @@ extension SoilMetricChart on SoilMetric {
     SoilMetric.nitrogen => b.avgNitrogen,
     SoilMetric.phosphorus => b.avgPhosphorus,
     SoilMetric.potassium => b.avgPotassium,
+  };
+
+  /// Raw field from a timestamped reading (intra-day All-sensors chart).
+  double? valueOfReading(SoilReading r) => switch (this) {
+    SoilMetric.moisture => r.moisturePercent,
+    SoilMetric.ph => r.ph,
+    SoilMetric.temperature => r.soilTemperatureC,
+    SoilMetric.ec => r.ec,
+    SoilMetric.salinity => r.salinity,
+    SoilMetric.nitrogen => r.nitrogen,
+    SoilMetric.phosphorus => r.phosphorus,
+    SoilMetric.potassium => r.potassium,
   };
 
   double? minOf(DailySoilBucket b) => switch (this) {

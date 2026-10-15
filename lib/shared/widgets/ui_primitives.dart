@@ -53,8 +53,9 @@ class SoftCard extends StatelessWidget {
   const SoftCard({
     required this.child,
     this.padding = const EdgeInsets.all(16),
-    this.color = AppColors.surfaceLow,
+    this.color = AppColors.surface,
     this.onTap,
+    this.expand = false,
     super.key,
   });
 
@@ -63,15 +64,27 @@ class SoftCard extends StatelessWidget {
   final Color color;
   final VoidCallback? onTap;
 
+  /// Fills the parent so two cards in one row share the same height.
+  final bool expand;
+
   @override
   Widget build(BuildContext context) {
     final content = Container(
+      width: expand ? double.infinity : null,
+      height: expand ? double.infinity : null,
+      alignment: expand ? Alignment.topLeft : null,
       padding: padding,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outline.withValues(alpha: 0.35)),
-      ),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0F2E3230),
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
       child: child,
     );
 
@@ -80,7 +93,7 @@ class SoftCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(22),
         child: content,
       ),
     );

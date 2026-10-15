@@ -32,10 +32,10 @@ enum FarmNotificationType {
     phaseChange => 'Phase',
   };
 
-  /// Shell tab that owns this alert (0 Home, 2 Crops). Bell shows all.
+  /// Shell tab that owns this alert (0 Home, 1 Farm). Bell shows all.
   int? get shellTabIndex => switch (this) {
     irrigation || soilAlert || sensorError || deviceOffline => 0,
-    nutrientLow || phaseChange => 2,
+    nutrientLow || phaseChange => 1,
   };
 
   /// Types whose red dot lives on [tabIndex].

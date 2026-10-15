@@ -1,0 +1,18 @@
+flowchart TD
+  A[Open Home] --> B[Skeleton if no soil yet]
+  B --> C[fetchLatest + watchLatest soil_readings]
+  C --> D[Open-Meteo at farm pin]
+  D --> E[Load ai_assessments kind=home]
+  E --> F{Fingerprint / valid_until / prompt_version needs regen?}
+  F -->|No| G[Show Condition Water Nutrients Crop care]
+  F -->|Yes| H[Invoke soilgood-insights job=home]
+  H --> I[Groq → save assessment + recommendations]
+  I --> G
+
+  G --> R[Realtime new soil_reading id]
+  R --> C
+  R --> E
+
+  G --> P[Pull-to-refresh]
+  P --> Q[Keep last-known on screen]
+  Q --> C

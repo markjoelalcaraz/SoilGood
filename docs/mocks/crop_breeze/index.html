@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SoilGood — crop breeze sample</title>
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,700&family=Nunito+Sans:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      display: grid; place-items: center;
+      background: #e7eee4;
+      font-family: "Nunito Sans", sans-serif;
+      color: #243028;
+    }
+    .wrap { display: grid; gap: 14px; justify-items: center; }
+    .phone {
+      width: min(100vw, 390px);
+      background: #f6f8f3;
+      border-radius: 28px;
+      padding: 22px 16px 28px;
+      box-shadow: 0 16px 40px rgba(36, 48, 40, 0.12);
+    }
+    h1 { font-family: Literata, serif; margin: 0; font-size: 28px; }
+    .sub { margin: 4px 0 14px; color: #5c6760; font-weight: 700; }
+    .map {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      background: #cfe3b8; border-radius: 22px; padding: 10px;
+    }
+    .tile {
+      position: relative; height: 150px; border-radius: 16px; overflow: hidden;
+      background: #d7e8c4;
+    }
+    .tile img {
+      position: absolute; inset: -8%;
+      width: 116%; height: 116%; object-fit: cover;
+      transform-origin: 50% 70%;
+      animation: breeze 3.4s ease-in-out infinite;
+    }
+    .tile.corn img { animation-delay: -0.8s; animation-duration: 3.8s; }
+    .tile.rice img { animation-delay: -1.6s; animation-duration: 4.1s; }
+    .tile.chili img { animation-delay: -0.4s; animation-duration: 3.1s; }
+    .tag {
+      position: absolute; z-index: 2; top: 8px; left: 8px;
+      background: #fff; border-radius: 999px; padding: 3px 8px;
+      font-size: 12px; font-weight: 800;
+    }
+    .grass {
+      position: absolute; z-index: 1; bottom: 0; left: 0; right: 0; height: 28px;
+      display: flex; justify-content: space-around; align-items: flex-end;
+      pointer-events: none;
+    }
+    .grass i {
+      display: block; width: 7px; height: 22px; border-radius: 8px 8px 2px 2px;
+      background: #7dce55; transform-origin: bottom center;
+      animation: blade 2.2s ease-in-out infinite;
+    }
+    .grass i:nth-child(2n) { height: 16px; background: #69b844; animation-duration: 2.6s; }
+    .grass i:nth-child(3n) { animation-delay: -0.4s; height: 18px; }
+    @keyframes breeze {
+      0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+      30% { transform: translate3d(-6px, 1px, 0) rotate(-1.1deg) scale(1.03); }
+      60% { transform: translate3d(7px, -1px, 0) rotate(1.2deg) scale(1.035); }
+    }
+    @keyframes blade {
+      0%, 100% { transform: rotate(-8deg); }
+      50% { transform: rotate(12deg); }
+    }
+    p.note { margin: 12px 0 0; color: #5c6760; font-weight: 700; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="phone">
+      <h1>My farm</h1>
+      <p class="sub">A light wind moves the plots.</p>
+      <div class="map">
+        <div class="tile">
+          <img src="../../../assets/crops/tomato.jpg" alt="" />
+          <span class="grass"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="tag">Tomatoes</span>
+        </div>
+        <div class="tile corn">
+          <img src="../../../assets/crops/corn.jpg" alt="" />
+          <span class="grass"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="tag">Corn</span>
+        </div>
+        <div class="tile rice">
+          <img src="../../../assets/crops/rice.jpg" alt="" />
+          <span class="grass"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="tag">Palay</span>
+        </div>
+        <div class="tile chili">
+          <img src="../../../assets/crops/chili.jpg" alt="" />
+          <span class="grass"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="tag">Sili</span>
+        </div>
+      </div>
+      <p class="note">Hindi sabay-sabay ang galaw. Bawat plot ay may sariling hangin.</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -20,6 +20,8 @@ class AuthTextField extends StatelessWidget {
     this.validator,
     this.onChanged,
     this.autofillHints,
+    this.showLabel = true,
+    this.fillColor,
     super.key,
   });
 
@@ -34,20 +36,37 @@ class AuthTextField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final Iterable<String>? autofillHints;
 
+  /// Login hides the label so the field matches the mock’s icon row.
+  final bool showLabel;
+
+  /// When set, the field uses this fill (login email is white, password is warm).
+  final Color? fillColor;
+
+  /// Login corners stay a short rounded rect. A large radius turns the field into a long pill.
+  InputBorder? _loginBorder(Color color, {double width = 1}) {
+    if (fillColor == null) return null;
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: color, width: width),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
+        if (showLabel) ...[
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
+          const SizedBox(height: 8),
+        ],
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
@@ -61,6 +80,17 @@ class AuthTextField extends StatelessWidget {
                   : (obscureText ? const [AutofillHints.password] : null)),
           decoration: InputDecoration(
             hintText: hint,
+            isDense: fillColor != null,
+            contentPadding: fillColor == null
+                ? null
+                : const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+            filled: fillColor != null ? true : null,
+            fillColor: fillColor,
+            border: _loginBorder(const Color(0xFFD7E0D8)),
+            enabledBorder: _loginBorder(const Color(0xFFD7E0D8)),
+            focusedBorder: _loginBorder(AppColors.buttonGreen, width: 1.5),
+            errorBorder: _loginBorder(AppColors.error),
+            focusedErrorBorder: _loginBorder(AppColors.error, width: 1.5),
             prefixIcon: Icon(icon, color: AppColors.textSecondary, size: 21),
             suffixIcon: onToggleVisibility == null
                 ? null

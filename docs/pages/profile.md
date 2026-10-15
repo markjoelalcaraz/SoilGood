@@ -2,7 +2,7 @@
 
 ## Status
 - [ ] Planned
-- [x] In progress (real name + email; farm/device settings later)
+- [x] In progress (name, email, and sensors on the current crop)
 - [ ] Done
 
 ## Purpose / goal
@@ -12,13 +12,14 @@ Account hub: see the farmer’s name and email, edit profile details, later farm
 - Open Profile tab from the app shell.
 - Read name (from `profiles`) and email (from Auth).
 - Edit profile → `ProfileOnboardingPage(fromProfile: true)`; on return, reload name.
+- **Sensors** → pushed `SensorsPage`: every kit as `Sensor (code)`, the plot it watches, **Add sensor** (code + current crop), and **Place on {crop}** when a kit has no plot yet.
 - Sign out → Supabase `signOut`.
 - **Pull-to-refresh** to reload the saved profile.
 
 ## Data & sources
 - **Name / address:** `profiles` via `OnboardingRepository.loadProfile()`.
 - **Email:** `supabase.auth.currentUser?.email` (no silent `farmer@example.com` fallback — show a visible missing-email message if null).
-- Farm & device row remains “coming next” (settings, not leftover mock sensor data).
+- Farm & device row is now **Sensors** (add a kit and choose the current crop).
 
 ## UI states
 | State | What the user sees |

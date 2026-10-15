@@ -1,0 +1,15 @@
+flowchart TD
+  A[Open Analytics] --> B[Pick period + metric]
+  B --> C[RPC analytics_soil_daily]
+  C --> D{Enough history?}
+  D -->|No| E[Empty / short-history message]
+  D -->|Yes| F[Trend chart + avg/min/max]
+  F --> G[Open-Meteo daily range same dates]
+  F --> H[farm_actions irrigation in window]
+  F --> I[Load ai_assessments kind=analytics for start+end]
+  I --> J{Regen?}
+  J -->|No| K[Kalagayan + action cards]
+  J -->|Yes| L[soilgood-insights job=analytics]
+  L --> K
+  F --> M[Tap day]
+  M --> N[DayReadingsPage slide-from-right]

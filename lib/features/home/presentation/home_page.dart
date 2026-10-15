@@ -1,13 +1,15 @@
 /// Home feature page shown inside the app shell content area (first bottom-nav tab).
 ///
 /// This is the farmer's at-a-glance dashboard after login/onboarding: live soil
-/// readings from Supabase, Open-Meteo weather for their farm pin, and three Groq
-/// tips for today (Condition, Water today, Nutrients). Realtime soil updates
-/// also recheck Home AI (fingerprint gate — Groq only when the story changed).
-/// Not a pushed route — the bottom nav stays mounted.
+/// readings from Supabase, Open-Meteo weather for their farm pin, and Groq
+/// tips for today (Condition, Water today, Nutrients, and Crop care when planted),
+/// then quick stats and the sensor numbers. The farm picture sits on top.
+/// Realtime soil updates also recheck Home AI (fingerprint gate — Groq only when
+/// the story changed). Not a pushed route — the bottom nav stays mounted.
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -17,12 +19,21 @@ import '../../../core/ai/groq_chat_client.dart';
 import '../../../core/ai/insights_config.dart';
 import '../../../core/ai/saved_assessment.dart';
 import '../../../core/ai/saved_assessment_repository.dart';
+import '../../../core/live/farm_live_hub.dart';
+import '../../../core/live/live_page.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/data/refresh_timeout.dart';
+import '../../../shared/navigation/app_page_routes.dart';
 import '../../../shared/widgets/app_refresh_scroll.dart';
 import '../../../shared/widgets/ui_primitives.dart';
+import '../../crops/data/planting.dart';
 import '../../crops/data/crops_repository.dart';
 import '../../crops/logic/crop_timeline.dart';
+import '../../farm/data/farm_sensor.dart';
+import '../../farm/data/plot_sensors_repository.dart';
+import '../../farm/logic/sensor_area_copy.dart';
+import '../../notifications/logic/notification_scope.dart';
+import '../../notifications/presentation/notifications_page.dart';
 import '../../shell/app_shell.dart';
 import '../../weather/data/farm_location_repository.dart';
 import '../../weather/data/open_meteo_weather_service.dart';
@@ -32,8 +43,10 @@ import '../data/soil_readings_repository.dart';
 import '../logic/home_ai_client.dart';
 import '../logic/home_ai_regen.dart';
 import '../logic/home_ai_story.dart';
+import '../logic/live_soil_truth.dart';
+import '../logic/quick_soil_insight.dart';
 
-/// Home dashboard — live soil, weather, and three Groq tips for today.
+/// Home dashboard — live soil, weather, and Groq tips for today.
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -41,8 +54,9 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with LivePage {
   final _repo = SoilReadingsRepository();
+  final _sensorsRepo = PlotSensorsRepository();
   final _farmRepo = FarmLocationRepository();
   final _cropsRepo = CropsRepository();
   final _weatherService = OpenMeteoWeatherService();
@@ -63,6 +77,11 @@ class _HomePageState extends State<HomePage> {
   Object? _aiError;
   bool _aiLoading = false;
   bool _hasActiveCrop = false;
+  Planting? _planting;
+  String? _farmName;
+  Object? _farmNameError;
+  List<FarmSensor> _sensors = [];
+  Object? _sensorError;
 
   /// Last soil row id that already triggered an AI recheck (Realtime path).
   String? _lastRealtimeAiSoilId;
@@ -70,6 +89,26 @@ class _HomePageState extends State<HomePage> {
   /// Coalesce overlapping open/pull/Realtime AI loads into one follow-up.
   bool _aiBusy = false;
   bool _aiQueued = false;
+
+  @override
+  Set<LiveSource> get liveSources => const {
+    LiveSource.plantings,
+    LiveSource.devices,
+    LiveSource.farms,
+    LiveSource.assessments,
+  };
+
+  /// Crop, sensor list, farm name, or saved tips changed. Soil has its own stream.
+  @override
+  Future<void> onLive(Set<LiveSource> changed) async {
+    if (changed.contains(LiveSource.farms)) await _loadFarmName();
+    if (changed.contains(LiveSource.devices)) await _loadSensors();
+    if (changed.contains(LiveSource.plantings) ||
+        changed.contains(LiveSource.assessments) ||
+        changed.contains(LiveSource.farms)) {
+      await _loadHomeAi();
+    }
+  }
 
   @override
   void initState() {
@@ -82,12 +121,29 @@ class _HomePageState extends State<HomePage> {
       },
     );
     _start();
+    unawaited(_loadFarmName());
+    unawaited(_loadSensors());
   }
 
   @override
   void dispose() {
     unawaited(_soilSub?.cancel() ?? Future.value());
     super.dispose();
+  }
+
+  /// Display name for the home greeting. A missing name stays blank, not a fake farm.
+  Future<void> _loadFarmName() async {
+    try {
+      final name = await withRefreshTimeout(_farmRepo.getPrimaryFarmName());
+      if (!mounted) return;
+      setState(() {
+        _farmName = name;
+        _farmNameError = null;
+      });
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _farmNameError = e);
+    }
   }
 
   /// Soil + weather first (cards can paint), then cheap-load / regen Home AI.
@@ -114,17 +170,36 @@ class _HomePageState extends State<HomePage> {
 
     final latest = _preferLatest(reading, _cached);
     if (latest == null) return;
+    unawaited(_loadSensors());
     if (latest.id == _lastRealtimeAiSoilId) return;
 
     _lastRealtimeAiSoilId = latest.id;
+    unawaited(_loadWeather(showSpinner: false));
     unawaited(_loadHomeAi());
+  }
+
+  /// Kits on this farm, each with its latest reading, for the area lines.
+  Future<void> _loadSensors() async {
+    try {
+      final farmId = await withRefreshTimeout(_farmRepo.getPrimaryFarmId());
+      if (farmId == null || !mounted) return;
+      final sensors = await withRefreshTimeout(
+        _sensorsRepo.listForFarm(farmId),
+      );
+      if (!mounted) return;
+      setState(() {
+        _sensors = sensors;
+        _sensorError = null;
+      });
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _sensorError = e);
+    }
   }
 
   /// Newer of stream vs pull-fetched cache so pull is not ignored.
   SoilReading? _preferLatest(SoilReading? stream, SoilReading? cached) {
-    if (stream == null) return cached;
-    if (cached == null) return stream;
-    return cached.recordedAt.isAfter(stream.recordedAt) ? cached : stream;
+    return preferLatest(stream, cached);
   }
 
   /// Loads last known reading once for faster first paint.
@@ -236,6 +311,8 @@ class _HomePageState extends State<HomePage> {
       }
     });
     await _loadHomeAi();
+    await _loadFarmName();
+    await _loadSensors();
   }
 
   /// Loads saved Home AI; calls Groq only when the story fingerprint says so.
@@ -270,6 +347,7 @@ class _HomePageState extends State<HomePage> {
         _aiError = null;
         _aiLoading = false;
         _hasActiveCrop = false;
+        _planting = null;
       });
       return;
     }
@@ -318,6 +396,7 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           _assessment = saved;
           _hasActiveCrop = hasCrop;
+          _planting = planting;
           _aiError = null;
           _aiLoading = false;
         });
@@ -358,6 +437,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _assessment = savedNew;
         _hasActiveCrop = hasCrop;
+        _planting = planting;
         _aiError = null;
         _aiLoading = false;
       });
@@ -370,36 +450,143 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// Sticker code for the reading currently on screen, when we know the kit.
+  String? _codeForReading(SoilReading? reading) {
+    if (reading == null) return null;
+    for (final sensor in _sensors) {
+      if (sensor.latest?.id == reading.id || sensor.id == reading.deviceId) {
+        return sensor.claimCode;
+      }
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final reading = _preferLatest(_streamReading, _cached);
     final soilError = _loadError;
+    final attention = [
+      for (final sensor in _sensors)
+        if (sensor.latest != null &&
+            sensorAreaFlag(sensor.latest!) != SensorAreaFlag.ok)
+          sensor,
+    ];
+    final shown = attention.isNotEmpty ? attention.first.latest : reading;
+    final shownCode = attention.isNotEmpty
+        ? attention.first.claimCode
+        : _codeForReading(reading);
     final waitingFirstSoil =
         !_soilFetchDone && reading == null && soilError == null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const SoilGoodTopBar(title: 'SoilGood'),
-      body: AppRefreshScroll(
+      body: Stack(
+        children: [
+          AppRefreshScroll(
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
         onRefresh: _reloadAll,
         children: [
+          _HomeStage(
+            hero: _HomeHero(
+              farmName: _farmName,
+              nameError: _farmNameError,
+              onOpenFarm: () => ShellScope.maybeOf(context)?.selectTab(1),
+            ),
+            focus: waitingFirstSoil
+                ? null
+                : _HomeFocusRow(reading: shown, weather: _weather),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+          if (attention.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (final sensor in attention) ...[
+              SoftCard(
+                color: AppColors.errorContainer,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      sensorAreaHeadline(
+                        claimCode: sensor.claimCode,
+                        flag: sensorAreaFlag(sensor.latest!),
+                        cropName: sensor.cropName,
+                      ),
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w800,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      sensorAreaDetail(
+                        sensor.latest!,
+                        sensorAreaFlag(sensor.latest!),
+                      ),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ],
+          const SizedBox(height: 16),
           if (soilError != null) ...[
             _SourceErrorCard(
               message: 'Could not load soil readings:\n$soilError',
             ),
             const SizedBox(height: 12),
           ],
+          if (_sensorError != null) ...[
+            _SourceErrorCard(
+              message: 'Could not load sensors:\n$_sensorError',
+            ),
+            const SizedBox(height: 12),
+          ],
           if (waitingFirstSoil)
             const _HomeFirstLoadSkeleton()
           else ...[
-            _OverallConditionBanner(reading: reading),
-            const SizedBox(height: 24),
-            const SectionHeader(
-              title: 'Sensor Findings',
+            if (shown != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                quickSoilInsight(shown),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  height: 1.45,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            _HomeAiTipsSection(
+              assessment: _assessment,
+              loading: _aiLoading && _assessment == null,
+              error: _aiError,
+              hasReading: reading != null,
+              hasActiveCrop: _hasActiveCrop,
+            ),
+            const SizedBox(height: 20),
+            _QuickStats(
+              reading: shown,
+              planting: _planting,
+              areaCount: _sensors.length,
+              onOpenFarm: () => ShellScope.maybeOf(context)?.selectTab(1),
+            ),
+            const SizedBox(height: 20),
+            SectionHeader(
+              title: shownCode == null ? 'The numbers' : 'Sensor ($shownCode)',
               icon: Icons.sensors,
             ),
             const SizedBox(height: 12),
-            if (reading == null)
+            if (shown == null)
               const SoftCard(
                 child: Text(
                   'No soil readings yet.\nLink a device in onboarding and wait for the ESP32 (or insert a test row in Supabase).',
@@ -410,7 +597,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               )
             else
-              _SensorGrid(reading: reading),
+              _SensorGrid(reading: shown),
           ],
           const SizedBox(height: 24),
           const SectionHeader(
@@ -423,13 +610,15 @@ class _HomePageState extends State<HomePage> {
             loading: _weatherLoading && _weather == null,
             error: _weatherError,
           ),
-          const SizedBox(height: 24),
-          _HomeAiTipsSection(
-            assessment: _assessment,
-            loading: _aiLoading && _assessment == null,
-            error: _aiError,
-            hasReading: reading != null,
-            hasActiveCrop: _hasActiveCrop,
+              ],
+            ),
+          ),
+        ],
+          ),
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 10,
+            right: 12,
+            child: const _StickyBell(),
           ),
         ],
       ),
@@ -437,132 +626,614 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _OverallConditionBanner extends StatelessWidget {
-  const _OverallConditionBanner({required this.reading});
+/// Farm picture with the moisture and weather cards sitting on its lower edge.
+///
+/// Overlap uses a top inset inside a [Stack], because negative padding crashes.
+class _HomeStage extends StatelessWidget {
+  const _HomeStage({required this.hero, this.focus});
 
-  final SoilReading? reading;
+  final Widget hero;
+  final Widget? focus;
 
-  String get _statusLabel {
-    if (reading == null) return 'WAITING';
-    if (reading!.validationStatus == 'error') return 'SENSOR ERROR';
-    if (reading!.validationStatus == 'warning') return 'CHECK SENSORS';
-    final moisture = reading!.moisturePercent;
-    if (moisture != null && moisture < 30) return 'DRY';
-    if (moisture != null && moisture > 85) return 'WET';
-    return 'OPTIMAL';
+  @override
+  Widget build(BuildContext context) {
+    if (focus == null) return hero;
+    return Stack(
+      alignment: Alignment.topCenter,
+      children: [
+        hero,
+        Padding(
+          padding: const EdgeInsets.only(top: 198, left: 16, right: 16),
+          child: focus,
+        ),
+      ],
+    );
+  }
+}
+
+/// Notification bell pinned to the top-right so it stays visible on scroll.
+class _StickyBell extends StatelessWidget {
+  const _StickyBell();
+
+  @override
+  Widget build(BuildContext context) {
+    final unread = NotificationScope.maybeOf(context)?.unreadCount ?? 0;
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 2,
+      shadowColor: const Color(0x332E3230),
+      child: IconButton(
+        tooltip: unread == 0
+            ? 'Notifications'
+            : 'Notifications ($unread unread)',
+        onPressed: () {
+          Navigator.of(context).push(
+            AppPageRoutes.slideFromRight(const NotificationsPage()),
+          );
+        },
+        icon: Badge(
+          isLabelVisible: unread > 0,
+          label: Text(unread > 9 ? '9+' : '$unread'),
+          backgroundColor: AppColors.error,
+          textColor: Colors.white,
+          child: const Icon(
+            Icons.notifications_outlined,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeHero extends StatelessWidget {
+  const _HomeHero({
+    required this.farmName,
+    required this.nameError,
+    required this.onOpenFarm,
+  });
+
+  final String? farmName;
+  final Object? nameError;
+  final VoidCallback? onOpenFarm;
+
+  String _hello() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 
-  String get _insight {
-    if (reading == null) {
-      return 'Connect a device to see live soil insights here.';
+  /// Bottom sheet with the farmer's farms + Add farm. v1 is one farm, but the
+  /// schema already allows many — the picker is ready for that growth.
+  Future<void> _openFarmPicker(BuildContext context, String current) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final shell = ShellScope.maybeOf(context);
+    List<FarmSummary> farms = const [];
+    Object? loadErr;
+    try {
+      farms = await FarmLocationRepository().listFarms();
+    } catch (e) {
+      loadErr = e;
     }
-    final m = reading!.moisturePercent?.toStringAsFixed(0) ?? '—';
-    final n = reading!.nitrogen?.toStringAsFixed(0) ?? '—';
-    return 'Latest moisture $m%. Nitrogen $n ppm. Updated ${_formatTime(reading!.recordedAt)}.';
-  }
+    if (!context.mounted) return;
 
-  String _formatTime(DateTime dt) {
-    final local = dt.toLocal();
-    return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      showDragHandle: true,
+      builder: (sheetCtx) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Your farms',
+                  style: GoogleFonts.literata(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (loadErr != null)
+                  Text(
+                    'Could not load farms:\n$loadErr',
+                    style: const TextStyle(color: AppColors.error),
+                  )
+                else if (farms.isEmpty)
+                  const Text(
+                    'No farms yet.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  )
+                else
+                  for (final f in farms)
+                    _FarmPickerRow(
+                      name: f.name,
+                      selected: f.name == current,
+                      onTap: () {
+                        Navigator.of(sheetCtx).pop();
+                        // v1 is one farm — switching is a no-op; keep farmer informed.
+                        if (f.name != current) {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Multi-farm switching is coming soon.',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                const SizedBox(height: 8),
+                _FarmPickerRow(
+                  name: 'Add another farm',
+                  selected: false,
+                  icon: Icons.add_circle_outline,
+                  onTap: () {
+                    Navigator.of(sheetCtx).pop();
+                    // Farm tab is the right place to manage areas and sensors.
+                    shell?.selectTab(1);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F2E3230),
-            blurRadius: 20,
-            offset: Offset(0, 4),
+    final name = (farmName == null || farmName!.trim().isEmpty)
+        ? 'My farm'
+        : farmName!.trim();
+    final letter = name.isEmpty ? 'S' : name[0].toUpperCase();
+
+    return SizedBox(
+      height: 250,
+      width: double.infinity,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/farm/farm-banner.jpg',
+            fit: BoxFit.cover,
+          ),
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 10,
+            left: 16,
+            right: 16,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.white,
+                  child: Text(
+                    letter,
+                    style: const TextStyle(
+                      color: AppColors.navIcon,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Right side reserved for the sticky bell; keep text clear of it.
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 52),
+                    child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _hello(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          shadows: [
+                            Shadow(color: Color(0xE6FFFFFF), blurRadius: 12),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => _openFarmPicker(context, name),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.textPrimary,
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(48, 28),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          alignment: Alignment.centerLeft,
+                        ),
+                        child: Text(
+                          '$name ▾',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.literata(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      if (nameError != null)
+                        const Text(
+                          'Could not load the farm name.',
+                          style: TextStyle(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
+                  ),
+                ),
+                // Bell is drawn by _StickyBell above the scroll area.
+              ],
+            ),
           ),
         ],
       ),
-      child: Stack(
+    );
+  }
+}
+
+/// Row inside the Home farm picker bottom sheet (farm or Add action).
+class _FarmPickerRow extends StatelessWidget {
+  const _FarmPickerRow({
+    required this.name,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+  });
+
+  final String name;
+  final bool selected;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              icon ?? Icons.spa_outlined,
+              color: AppColors.navIcon,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check, color: AppColors.navIcon, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeFocusRow extends StatelessWidget {
+  const _HomeFocusRow({required this.reading, required this.weather});
+
+  final SoilReading? reading;
+  final WeatherSnapshot? weather;
+
+  @override
+  Widget build(BuildContext context) {
+    final moisture = reading?.moisturePercent;
+    final temp = weather?.temperatureC;
+    final label = moisture == null
+        ? 'Waiting'
+        : moisture < 35
+        ? 'Needs water'
+        : moisture > 80
+        ? 'Plenty of water'
+        : 'Looking okay';
+    final rainTomorrow = weather != null && weather!.daily.length > 1
+        ? '${weather!.daily[1].rainProbability.round()}% rain tomorrow'
+        : null;
+    final icon = weather == null
+        ? Icons.wb_sunny
+        : weatherCodeIcon(weather!.weatherCode);
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Positioned(
-            right: -20,
-            top: -30,
-            child: Icon(
-              Icons.eco,
-              size: 140,
-              color: Colors.white.withValues(alpha: 0.12),
+          Expanded(
+            child: SoftCard(
+              expand: true,
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _MoistureRing(percent: moisture),
+                  const SizedBox(height: 8),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const Text(
+                    'Soil on this area',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'YOUR FARM OVERVIEW',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Overall Soil Condition',
-                style: GoogleFonts.literata(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
-                ),
-              ),
-              Text(
-                _statusLabel,
-                style: GoogleFonts.literata(
-                  color: AppColors.background,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.28),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.auto_awesome, color: Colors.white, size: 16),
-                        SizedBox(width: 6),
-                        Text(
-                          'QUICK INSIGHT',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ],
+          const SizedBox(width: 10),
+          Expanded(
+            child: SoftCard(
+              expand: true,
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, color: const Color(0xFFE0A100)),
+                  const SizedBox(height: 4),
+                  Text(
+                    temp == null ? '—' : '${temp.round()}°C',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.literata(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(height: 6),
+                  ),
+                  Text(
+                    weather?.conditionLabel ?? 'Forecast below',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  if (rainTomorrow != null)
                     Text(
-                      _insight,
+                      rainTomorrow,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        height: 1.4,
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Orange ring from the mock: full muted track + colored progress arc.
+class _MoistureRing extends StatelessWidget {
+  const _MoistureRing({required this.percent});
+
+  final double? percent;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = percent == null ? 0.0 : (percent!.clamp(0, 100) / 100);
+    return SizedBox(
+      width: 62,
+      height: 62,
+      child: CustomPaint(
+        painter: _MoistureRingPainter(progress: value.toDouble()),
+        child: Center(
+          child: Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              percent == null ? '—' : '${percent!.round()}%',
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MoistureRingPainter extends CustomPainter {
+  _MoistureRingPainter({required this.progress});
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    const stroke = 8.0;
+    final radius = (math.min(size.width, size.height) - stroke) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    // Full track so the farmer sees the ring even at 0% / low moisture.
+    final track = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..color = const Color(0xFFEDE7DA);
+    canvas.drawCircle(center, radius, track);
+
+    if (progress <= 0) return;
+    final arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xFFE07A3D);
+    canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * progress, false, arc);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MoistureRingPainter old) =>
+      old.progress != progress;
+}
+
+class _QuickStats extends StatelessWidget {
+  const _QuickStats({
+    required this.reading,
+    required this.planting,
+    required this.areaCount,
+    required this.onOpenFarm,
+  });
+
+  final SoilReading? reading;
+  final Planting? planting;
+  final int areaCount;
+  final VoidCallback? onOpenFarm;
+
+  @override
+  Widget build(BuildContext context) {
+    final timeline = planting == null ? null : timelineFor(planting!);
+    final narrow = isNarrowPhone(context);
+    final tiles = [
+      _Stat(
+        icon: Icons.spa_outlined,
+        label: 'Areas',
+        value: areaCount == 0 ? '—' : '$areaCount',
+        onTap: onOpenFarm,
+      ),
+      _Stat(
+        icon: Icons.water_drop_outlined,
+        label: 'Soil moisture',
+        value: reading?.moisturePercent == null
+            ? '—'
+            : '${reading!.moisturePercent!.round()}%',
+      ),
+      _Stat(
+        icon: Icons.eco_outlined,
+        label: planting?.crop.name ?? 'Harvest',
+        value: timeline == null ? '—' : '${timeline.daysLeft} days',
+        onTap: onOpenFarm,
+      ),
+      _Stat(
+        icon: Icons.map_outlined,
+        label: 'Farm map',
+        value: 'Open',
+        onTap: onOpenFarm,
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Quick stats',
+          style: GoogleFonts.literata(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (narrow)
+          for (var i = 0; i < tiles.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            tiles[i],
+          ]
+        else ...[
+          Row(
+            children: [
+              Expanded(child: tiles[0]),
+              const SizedBox(width: 8),
+              Expanded(child: tiles[1]),
             ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: tiles[2]),
+              const SizedBox(width: 8),
+              Expanded(child: tiles[3]),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.navIcon, size: 22),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.literata(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -609,7 +1280,7 @@ class _SensorGrid extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
-          childAspectRatio: narrow ? 2.4 : 1.28,
+          childAspectRatio: narrow ? 3.8 : 2.6,
       children: [
         _MetricTile(
           icon: Icons.water_drop_outlined,
@@ -623,20 +1294,17 @@ class _SensorGrid extends StatelessWidget {
           label: 'Temperature',
           value: reading.soilTemperatureC?.toStringAsFixed(1) ?? '—',
           unit: '°C',
-          iconColor: AppColors.tertiary,
         ),
         _MetricTile(
           icon: Icons.science_outlined,
           label: 'pH Level',
           value: reading.ph?.toStringAsFixed(1) ?? '—',
-          iconColor: AppColors.tertiary,
         ),
         _MetricTile(
           icon: Icons.bolt_outlined,
           label: 'EC',
           value: reading.ec?.toStringAsFixed(1) ?? '—',
           unit: 'dS/m',
-          iconColor: AppColors.secondary,
         ),
         _MetricTile(
           icon: Icons.waves_outlined,
@@ -645,7 +1313,6 @@ class _SensorGrid extends StatelessWidget {
           unit: 'ppt',
           chip: saltChip.$1,
           tone: saltChip.$2,
-          iconColor: AppColors.secondary,
         ),
         _MetricTile(
           icon: Icons.grass,
@@ -662,7 +1329,6 @@ class _SensorGrid extends StatelessWidget {
           unit: 'ppm',
           chip: pChip.$1,
           tone: pChip.$2,
-          iconColor: AppColors.primaryContainer,
         ),
         _MetricTile(
           icon: Icons.eco_outlined,
@@ -671,7 +1337,6 @@ class _SensorGrid extends StatelessWidget {
           unit: 'ppm',
           chip: kChip.$1,
           tone: kChip.$2,
-          iconColor: AppColors.tertiary,
         ),
           ],
         );
@@ -688,7 +1353,6 @@ class _MetricTile extends StatelessWidget {
     this.unit,
     this.chip,
     this.tone = StatusChipTone.neutral,
-    this.iconColor = AppColors.primary,
   });
 
   final IconData icon;
@@ -697,92 +1361,75 @@ class _MetricTile extends StatelessWidget {
   final String? unit;
   final String? chip;
   final StatusChipTone tone;
-  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     return SoftCard(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.topLeft,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: constraints.maxWidth,
-                maxWidth: constraints.maxWidth,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.navIcon.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppColors.navIcon, size: 14),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: iconColor.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(icon, color: iconColor, size: 16),
-                      ),
-                      const Spacer(),
-                      if (chip != null)
-                        Flexible(
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: StatusChip(label: chip!, tone: tone),
-                          ),
-                        ),
-                    ],
+              const Spacer(),
+              if (chip != null)
+                Flexible(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: StatusChip(label: chip!, tone: tone),
                   ),
-                  const SizedBox(height: 8),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  value,
+                  style: GoogleFonts.literata(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (unit != null) ...[
+                  const SizedBox(width: 3),
                   Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    unit!,
                     style: const TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          value,
-                          style: GoogleFonts.literata(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        if (unit != null) ...[
-                          const SizedBox(width: 3),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            child: Text(
-                              unit!,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                      fontSize: 11,
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -1021,9 +1668,14 @@ class _HomeAiTipsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionHeader(
-          title: 'Tips for today',
-          icon: Icons.psychology_outlined,
+        const Text(
+          'AI FOR THIS AREA',
+          style: TextStyle(
+            color: AppColors.navIcon,
+            fontWeight: FontWeight.w800,
+            fontSize: 12,
+            letterSpacing: 0.6,
+          ),
         ),
         const SizedBox(height: 12),
         if (error != null)
@@ -1054,13 +1706,19 @@ class _HomeAiTipsSection extends StatelessWidget {
             rec: _recOf(assessment!, 'irrigation'),
           ),
           const SizedBox(height: 10),
-          if (hasActiveCrop)
+          if (hasActiveCrop) ...[
             _HomeTipCard(
               slotLabel: 'Nutrients',
               icon: Icons.science,
               rec: _recOf(assessment!, 'nutrient'),
-            )
-          else
+            ),
+            const SizedBox(height: 10),
+            _HomeTipCard(
+              slotLabel: 'Crop care',
+              icon: Icons.eco_outlined,
+              rec: _recOf(assessment!, 'crop_care'),
+            ),
+          ] else
             const _NutrientsCropCtaCard(),
         ],
       ],
@@ -1079,7 +1737,7 @@ class _HomeAiTipsSection extends StatelessWidget {
   }
 }
 
-/// One of the three Home tip slots.
+/// One of the three Home tip slots. Tap jumps to the Farm tab (selected crop).
 class _HomeTipCard extends StatelessWidget {
   const _HomeTipCard({
     required this.slotLabel,
@@ -1093,74 +1751,43 @@ class _HomeTipCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final high = rec?.priority == 'high';
+    final chipText = rec?.recommendedAction.trim();
+    final title = rec?.title ?? 'Pull to refresh';
     return SoftCard(
-      color: high
-          ? AppColors.secondaryContainer
-          : AppColors.surface,
-      padding: const EdgeInsets.all(18),
-      child: Row(
+      onTap: () => ShellScope.maybeOf(context)?.selectTab(1),
+      padding: const EdgeInsets.fromLTRB(18, 16, 14, 18),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppColors.primary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        slotLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
-                          color: AppColors.secondary,
-                        ),
-                      ),
-                    ),
-                    if (rec != null && rec!.recommendedAction.isNotEmpty)
-                      StatusChip(
-                        label: rec!.recommendedAction,
-                        tone: _actionTone(rec!.recommendedAction),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  rec?.title ?? 'Pull to refresh',
-                  maxLines: 2,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  slotLabel,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.literata(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    height: 1.25,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  rec?.description.isNotEmpty == true
-                      ? rec!.description
-                      : 'No tip yet for this card. Pull the page to refresh.',
                   style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.textSecondary,
-                    fontSize: 14,
-                    height: 1.45,
                   ),
                 ),
-              ],
+              ),
+              if (chipText != null && chipText.isNotEmpty)
+                StatusChip(label: chipText, tone: _actionTone(chipText)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.literata(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+              color: AppColors.textPrimary,
             ),
           ),
         ],
@@ -1170,14 +1797,18 @@ class _HomeTipCard extends StatelessWidget {
 
   static StatusChipTone _actionTone(String action) {
     final lower = action.toLowerCase();
-    if (lower.contains('wait') || lower.contains('hold') || lower.contains('okay') || lower.contains('fine') || lower.contains('no worry')) {
+    if (lower.contains('wait') ||
+        lower.contains('hold') ||
+        lower.contains('okay') ||
+        lower.contains('fine') ||
+        lower.contains('no worry')) {
       return StatusChipTone.good;
     }
-    if (lower.contains('water') || lower.contains('irrigate') || lower.contains('fertilizer') || lower.contains('add')) {
+    if (lower.contains('water') ||
+        lower.contains('irrigate') ||
+        lower.contains('fertilizer') ||
+        lower.contains('add')) {
       return StatusChipTone.warn;
-    }
-    if (lower.contains('check') || lower.contains('sensor')) {
-      return StatusChipTone.neutral;
     }
     return StatusChipTone.neutral;
   }
@@ -1243,7 +1874,7 @@ class _NutrientsCropCtaCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: TextButton(
                     onPressed: () {
-                      ShellScope.maybeOf(context)?.selectTab(2);
+                      ShellScope.maybeOf(context)?.selectTab(1);
                     },
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.primary,

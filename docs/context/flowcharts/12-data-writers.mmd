@@ -1,0 +1,11 @@
+flowchart TB
+  subgraph Writers
+    ESP32[ESP32] -->|ingest RPC| SR[(soil_readings)]
+    FL[Flutter farmer] -->|Auth JWT + RLS| PR[(profiles farms plantings farm_actions)]
+    FL -->|claim_device| DV[(devices.farm_id)]
+    FL -->|Open-Meteo live| WX[UI weather — persist later]
+    FL -->|insights invoke| AI[(ai_assessments / recommendations)]
+    FL -->|local classify| FN[(farm_notifications)]
+    FL -->|rules builder| IP[(irrigation_plans / slots)]
+    ADM[Admin] -->|provision RPCs| DV2[(devices unclaimed)]
+  end

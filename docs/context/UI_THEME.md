@@ -1,13 +1,16 @@
 # SoilGood — UI Theme
 
 ## Brand direction
-Clean, minimalist, editorial look. Practical for farmers on mobile — clear hierarchy, high contrast, calm greens.
+Family-friendly farm look. Practical for farmers on mobile — illustrated plots, light green actions, calm cards. The older editorial green (`#4A7C59`) is kept in `design/original/` for revert.
 
 ## Colors
 | Role | Value | Usage |
 |---|---|---|
-| **Primary green** | `#4A7C59` | Buttons, icons, important headers, brand accents |
-| **Matte white** | `#FFFFFF` | Main background |
+| **Primary green** | `#62A844` | Icons, links, brand accents |
+| **Button green** | `#6AAF45` | Filled buttons. Dark text `#243028`. Splash and login buttons use white text |
+| **Nav pill** | `#C8EEB0` | Selected bottom-nav chip. Icon `#4E9434` |
+| **Page background** | `#F6F8F3` | Scaffold behind white cards |
+| **Matte white** | `#FFFFFF` | Cards |
 | **Surface / cards** | Soft off-white / light gray | Cards and surfaces for depth without leaving the matte-white feel |
 | **Text** | Dark charcoal **or** deep forest green | Body and labels for readability on white |
 

@@ -18,7 +18,7 @@ import '../../../shared/widgets/ui_primitives.dart';
 import '../../auth/presentation/widgets/auth_error_banner.dart';
 import '../../auth/presentation/widgets/auth_primary_button.dart';
 import '../data/onboarding_repository.dart';
-import 'device_onboarding_page.dart';
+import 'soil_texture_onboarding_page.dart';
 
 /// Onboarding Step 2 — GPS detect + draggable map pin, then save farm.
 class LocationOnboardingPage extends StatefulWidget {
@@ -117,7 +117,7 @@ class _LocationOnboardingPageState extends State<LocationOnboardingPage> {
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        AppPageRoutes.slideFromRight(const DeviceOnboardingPage()),
+        AppPageRoutes.slideFromRight(const SoilTextureOnboardingPage()),
       );
     } on Object catch (e) {
       setState(() {
@@ -158,7 +158,7 @@ class _LocationOnboardingPageState extends State<LocationOnboardingPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Step 2 of 3',
+                    'Step 2 of 4',
                     style: TextStyle(
                       color: AppColors.primary.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w800,

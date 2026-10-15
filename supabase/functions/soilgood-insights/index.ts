@@ -16,7 +16,7 @@ const cors = {
 // Groq shut down llama-3.3-70b-versatile on 2026-08-16; this is their
 // recommended replacement and it keeps JSON-mode support.
 const model = "openai/gpt-oss-120b";
-const jobs = new Set(["home", "analytics", "crops.care"]);
+const jobs = new Set(["home", "analytics", "crops.care", "crops.match"]);
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -143,11 +143,16 @@ async function handlePost(req: Request): Promise<Response> {
 
   const configSlice = slice(insights, job);
 
-  const systemPrompt =
-    "You are SoilGood for Philippine smallholder farmers. Follow config JSON. " +
-    "Reply with JSON only: overview (2-4 sentences), soil_health_score (0-100), " +
-    "recommendations[{type,title,description,recommended_action,priority}]. " +
-    "No markdown. Do not invent numbers.";
+  const systemPrompt = job === "crops.match"
+    ? "You are SoilGood for Philippine smallholder farmers. Follow config JSON. " +
+      "Reply with JSON only: overview (2-3 sentences), " +
+      "matches[{crop_id,score,reason}]. score is integer 0-100. " +
+      "Only use crop_id values from the user payload catalog. " +
+      "No markdown. Do not invent numbers or crops."
+    : "You are SoilGood for Philippine smallholder farmers. Follow config JSON. " +
+      "Reply with JSON only: overview (2-4 sentences), soil_health_score (0-100), " +
+      "recommendations[{type,title,description,recommended_action,priority}]. " +
+      "No markdown. Do not invent numbers.";
 
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), 20_000);

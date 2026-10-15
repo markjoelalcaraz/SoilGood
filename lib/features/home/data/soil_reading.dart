@@ -9,6 +9,7 @@ class SoilReading {
   const SoilReading({
     required this.id,
     required this.recordedAt,
+    this.deviceId,
     this.moisturePercent,
     this.ph,
     this.soilTemperatureC,
@@ -23,6 +24,9 @@ class SoilReading {
 
   final String id;
   final DateTime recordedAt;
+
+  /// ESP32 that wrote this row. Null on older payloads that omit `device_id`.
+  final String? deviceId;
   final double? moisturePercent;
   final double? ph;
   final double? soilTemperatureC;
@@ -39,6 +43,7 @@ class SoilReading {
     return SoilReading(
       id: json['id'] as String,
       recordedAt: DateTime.parse(json['recorded_at'] as String),
+      deviceId: json['device_id'] as String?,
       moisturePercent: (json['moisture_percent'] as num?)?.toDouble(),
       ph: (json['ph'] as num?)?.toDouble(),
       soilTemperatureC: (json['soil_temperature_c'] as num?)?.toDouble(),

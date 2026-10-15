@@ -1,10 +1,13 @@
 // SoilGood — THE01888S Modbus read + HTTPS POST to ingest_soil_reading.
-// Needs secrets.h (WiFi, DEVICE_UID, INGEST_TOKEN, SUPABASE_URL, SUPABASE_ANON_KEY).
+// Credentials: Preferences (NVS) preferred; secrets.h used as bench fallback.
+// Lab Flasher sends one line: SGCFG|{json}| then board replies SGCFG_OK and reboots.
 // USB Serial 115200. Sensor Serial2 9600 on D16/D17 via MAX485.
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
+#include <Preferences.h>
+#include <ArduinoJson.h>
 #include "secrets.h"
 
 #define RXD2 16
@@ -13,10 +16,19 @@
 #define RE_PIN 5
 
 // Farm default: ~15 minutes between successful reads/POSTs.
-// Bench debug only: temporarily use 30000UL (30s) for POST_EVERY_MS.
-const unsigned long POST_EVERY_MS = 900000UL;
-// Modbus fail: retry soon — do not wait a full farm interval.
-const unsigned long RETRY_FAIL_MS = 10000UL;
+const unsigned long POST_EVERY_MS = 1000UL;
+const unsigned long RETRY_FAIL_MS = 2000UL;
+// Listen for Lab Flasher config after boot.
+const unsigned long CONFIG_WINDOW_MS = 20000UL;
+
+Preferences prefs;
+
+String gDeviceUid;
+String gIngestToken;
+String gWifiSsid;
+String gWifiPassword;
+String gSupabaseUrl;
+String gSupabaseAnon;
 
 void rs485Speak(bool speak) {
   digitalWrite(DE_PIN, speak ? HIGH : LOW);
@@ -24,6 +36,91 @@ void rs485Speak(bool speak) {
 }
 
 int16_t asSigned(uint16_t u) { return (int16_t)u; }
+
+// Loads NVS; falls back to secrets.h compile-time defaults for bench.
+bool loadConfig() {
+  prefs.begin("soilgood", true);
+  gDeviceUid = prefs.getString("device_uid", "");
+  gIngestToken = prefs.getString("ingest_token", "");
+  gWifiSsid = prefs.getString("wifi_ssid", "");
+  gWifiPassword = prefs.getString("wifi_password", "");
+  gSupabaseUrl = prefs.getString("supabase_url", "");
+  gSupabaseAnon = prefs.getString("supabase_anon", "");
+  prefs.end();
+
+  if (gDeviceUid.length() == 0) gDeviceUid = DEVICE_UID;
+  if (gIngestToken.length() == 0) gIngestToken = INGEST_TOKEN;
+  if (gWifiSsid.length() == 0) gWifiSsid = WIFI_SSID;
+  if (gWifiPassword.length() == 0) gWifiPassword = WIFI_PASSWORD;
+  if (gSupabaseUrl.length() == 0) gSupabaseUrl = SUPABASE_URL;
+  if (gSupabaseAnon.length() == 0) gSupabaseAnon = SUPABASE_ANON_KEY;
+
+  return gDeviceUid.length() > 0 && gIngestToken.length() >= 8
+      && gWifiSsid.length() > 0 && gSupabaseUrl.length() > 0
+      && gSupabaseAnon.length() > 0;
+}
+
+// Persists Lab Flasher JSON into Preferences (NVS).
+bool saveConfigFromJson(const String& json) {
+  StaticJsonDocument<768> doc;
+  DeserializationError err = deserializeJson(doc, json);
+  if (err) return false;
+
+  const char* uid = doc["device_uid"] | "";
+  const char* token = doc["ingest_token"] | "";
+  const char* ssid = doc["wifi_ssid"] | "";
+  const char* pass = doc["wifi_password"] | "";
+  const char* url = doc["supabase_url"] | "";
+  const char* anon = doc["supabase_anon"] | "";
+
+  if (strlen(uid) == 0 || strlen(token) < 8) return false;
+
+  prefs.begin("soilgood", false);
+  prefs.putString("device_uid", uid);
+  prefs.putString("ingest_token", token);
+  if (strlen(ssid) > 0) prefs.putString("wifi_ssid", ssid);
+  if (strlen(pass) > 0) prefs.putString("wifi_password", pass);
+  if (strlen(url) > 0) prefs.putString("supabase_url", url);
+  if (strlen(anon) > 0) prefs.putString("supabase_anon", anon);
+  prefs.end();
+  return true;
+}
+
+// Lines look like: SGCFG|{...}|
+void tryConsumeConfigLine(const String& line) {
+  if (!line.startsWith("SGCFG|")) return;
+  int end = line.lastIndexOf('|');
+  if (end <= 6) return;
+  String json = line.substring(6, end);
+  if (saveConfigFromJson(json)) {
+    Serial.println("SGCFG_OK");
+    delay(200);
+    ESP.restart();
+  } else {
+    Serial.println("SGCFG_ERR");
+  }
+}
+
+void pollConfigSerial(unsigned long windowMs) {
+  Serial.println("SGCFG_WAIT");
+  unsigned long start = millis();
+  String buf;
+  while (millis() - start < windowMs) {
+    while (Serial.available()) {
+      char c = (char)Serial.read();
+      if (c == '\n' || c == '\r') {
+        if (buf.length() > 0) {
+          tryConsumeConfigLine(buf);
+          buf = "";
+        }
+      } else {
+        buf += c;
+        if (buf.length() > 700) buf = "";
+      }
+    }
+    delay(5);
+  }
+}
 
 int readFrame(byte* buf, int maxLen) {
   while (Serial2.available()) Serial2.read();
@@ -56,7 +153,6 @@ int find0103(byte* buf, int n) {
   return -1;
 }
 
-// Returns true if a full 8-register frame was decoded into the floats.
 bool readSoil(
   float& temperatureC,
   float& moisturePct,
@@ -113,12 +209,11 @@ bool postReading(
   const char* status,
   const char* message
 ) {
-  // JSON keys must match RPC arg names (p_...)
   String body = "{";
   body += "\"p_device_uid\":\"";
-  body += DEVICE_UID;
+  body += gDeviceUid;
   body += "\",\"p_ingest_token\":\"";
-  body += INGEST_TOKEN;
+  body += gIngestToken;
   body += "\",\"p_moisture_percent\":";
   body += String(moisturePct, 1);
   body += ",\"p_ph\":";
@@ -141,15 +236,15 @@ bool postReading(
   body += message;
   body += "\"}";
 
-  String url = String(SUPABASE_URL) + "/rest/v1/rpc/ingest_soil_reading";
+  String url = gSupabaseUrl + "/rest/v1/rpc/ingest_soil_reading";
 
   WiFiClientSecure client;
   client.setInsecure();
 
   HTTPClient http;
   http.begin(client, url);
-  http.addHeader("apikey", SUPABASE_ANON_KEY);
-  http.addHeader("Authorization", String("Bearer ") + SUPABASE_ANON_KEY);
+  http.addHeader("apikey", gSupabaseAnon);
+  http.addHeader("Authorization", String("Bearer ") + gSupabaseAnon);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Prefer", "return=representation");
 
@@ -168,11 +263,22 @@ void setup() {
   rs485Speak(false);
 
   Serial.begin(115200);
-  delay(1000);
+  delay(800);
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
 
+  // Lab Flasher window: accept credentials before WiFi connect.
+  pollConfigSerial(CONFIG_WINDOW_MS);
+
+  if (!loadConfig()) {
+    Serial.println("Config missing — use Lab Flasher or fill secrets.h");
+    return;
+  }
+
+  Serial.print("device_uid ");
+  Serial.println(gDeviceUid);
+
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(gWifiSsid.c_str(), gWifiPassword.c_str());
   Serial.print("WiFi ");
   int tries = 0;
   while (WiFi.status() != WL_CONNECTED) {
@@ -189,6 +295,21 @@ void setup() {
 }
 
 void loop() {
+  // Keep accepting re-flash / re-provision over USB while running.
+  while (Serial.available()) {
+    static String liveBuf;
+    char c = (char)Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (liveBuf.length() > 0) {
+        tryConsumeConfigLine(liveBuf);
+        liveBuf = "";
+      }
+    } else {
+      liveBuf += c;
+      if (liveBuf.length() > 700) liveBuf = "";
+    }
+  }
+
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi lost");
     delay(2000);
@@ -212,7 +333,6 @@ void loop() {
   Serial.print("P mg/kg:     "); Serial.println(phosphorus, 0);
   Serial.print("K mg/kg:     "); Serial.println(potassium, 0);
 
-  // Cheap probe pH is often weak; flag out-of-band for farmers.
   const char* status = "ok";
   const char* message = "THE01888S live reading";
   if (ph < 3.0 || ph > 10.0) {

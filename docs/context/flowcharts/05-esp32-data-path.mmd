@@ -1,0 +1,10 @@
+flowchart LR
+  S[8-in-1 sensors] --> E[ESP32]
+  E -->|anon key + device_uid + ingest_token| R[POST /rpc/ingest_soil_reading]
+  R --> V{Token valid + ranges OK?}
+  V -->|No| X[Fail / validation_status]
+  V -->|Yes| T[(soil_readings)]
+  T --> U[Update devices.last_seen_at]
+  T --> RT[Supabase Realtime]
+  RT --> H[Home soil cards]
+  RT --> N[NotificationClassifier]

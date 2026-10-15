@@ -13,6 +13,9 @@ const kAppContentMaxWidth = 600.0;
 /// Login / signup card — tighter than dashboard cards.
 const kAuthContentMaxWidth = 440.0;
 
+/// Admin / wide web content — still capped so it does not stretch edge-to-edge.
+const kAdminContentMaxWidth = 960.0;
+
 /// Centers [child] and caps width. On a real phone this is a no-op.
 class AppContentWidth extends StatelessWidget {
   const AppContentWidth({

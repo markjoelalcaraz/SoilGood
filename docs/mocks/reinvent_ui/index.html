@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SoilGood — reinvented UI with actual components</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,700;1,7..72,700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@24,400,0..1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../irrigation_diary/styles.css" />
+  <style>
+    .studio {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 16px 48px;
+      display: grid;
+      grid-template-columns: 280px minmax(280px, 390px);
+      gap: 28px;
+      justify-content: center;
+      align-items: start;
+    }
+    .studio h1 { margin: 0; font-family: var(--display); font-size: 1.6rem; }
+    .lede { margin: 8px 0 0; color: var(--text-secondary); font-size: .92rem; }
+    .jumps { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; }
+    .jumps button {
+      text-align: left; border: 0; background: transparent; font: inherit; font-weight: 700;
+      color: var(--text-secondary); padding: 8px 10px; border-radius: 12px; cursor: pointer;
+    }
+    .jumps button.on { background: #fff; color: var(--primary); }
+    .jumps small { display: block; font-weight: 700; font-size: .72rem; letter-spacing: .04em; }
+    .jumps small.new { color: #7a5b12; }
+    .jumps small.live { color: var(--primary); }
+    .parts {
+      margin-top: 16px; background: #fff; border-radius: 16px; padding: 12px 14px;
+      font-size: .84rem;
+    }
+    .parts h2 { margin: 0 0 8px; font-size: .75rem; letter-spacing: .06em; color: var(--text-secondary); }
+    .parts li { margin: 0 0 6px; }
+    .screen { display: none; flex: 1; min-height: 0; flex-direction: column; }
+    .screen.on { display: flex; }
+    .phone .nav { display: none; }
+    .phone.shell .nav { display: grid; }
+    .nav button { font: inherit; cursor: pointer; }
+    .splash {
+      flex: 1; background: linear-gradient(180deg, #f3fbff 0%, #fffaf2 48%, #e7f6c9 100%);
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+    }
+    .splash .word { margin: 12px 0 0; font-family: var(--display); font-size: 42px; }
+    .field-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+    .fcard {
+      flex: 0 0 78%; text-align: left; border: 2px solid transparent; background: var(--surface);
+      border-radius: 16px; padding: 10px; cursor: pointer; font: inherit; color: inherit;
+    }
+    .fcard.on { border-color: var(--primary); }
+    .step { display: none; }
+    .step.on { display: block; }
+    .choice {
+      width: 100%; text-align: left; margin-bottom: 8px; cursor: pointer;
+      border: 1px solid color-mix(in srgb, var(--outline) 50%, transparent);
+      background: var(--surface); border-radius: 16px; padding: 12px 14px; font: inherit;
+    }
+    .choice.on { border-color: var(--primary); background: rgba(74,124,89,.08); }
+    .choice b { display: block; }
+    .choice span { color: var(--text-secondary); font-size: 13px; }
+    button.filter-pill { font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+    /* Family theme — same language as the splash */
+    #phone {
+      --primary: #62a844;
+      --background: #f6f8f3;
+      --surface: #ffffff;
+      --surface-low: #ffffff;
+      --surface-high: #f3f7f1;
+      --text: #243028;
+      --text-secondary: #5c6760;
+      background: linear-gradient(180deg, #f3fbff 0%, #fbfaf6 22%, #f4f7f2 100%);
+      border: 0;
+      border-radius: 36px;
+    }
+    #phone .topbar {
+      background: transparent;
+      border-bottom: 0;
+      min-height: 52px;
+    }
+    #phone .topbar .title { color: #243028; font-style: normal; }
+    #phone .content { background: transparent; }
+    #phone .page-title { color: #243028; }
+    #phone .soft-card {
+      background: #fff;
+      border: 0;
+      border-radius: 22px;
+      box-shadow: 0 8px 20px rgba(46, 50, 48, 0.06);
+    }
+    #phone .btn, #phone .btn-filled, #phone .btn-slot, #phone .filter-pill {
+      border-radius: 999px;
+    }
+    #phone .btn-filled, #phone .btn-slot {
+      background: #6aaf45;
+      color: #243028;
+      min-height: 52px;
+      font-weight: 800;
+      box-shadow: none;
+    }
+    #splash .btn-filled,
+    #login .btn-filled { color: #fff; }
+    #phone .btn-text { color: #4e9434; font-weight: 800; }
+    #phone .overview-banner {
+      background: #fff;
+      color: #243028;
+      border-radius: 24px;
+      box-shadow: 0 8px 20px rgba(46, 50, 48, 0.06);
+    }
+    #phone .overview-banner .watermark { display: none; }
+    #phone .eyebrow { color: #4e9434; }
+    #phone .overview-banner .h-title,
+    #phone .overview-banner .status { color: #243028; }
+    #phone .quick-insight {
+      background: #f3faf4;
+      border: 0;
+      color: #243028;
+    }
+    #phone .section-header h2 { font-size: 20px; }
+    #phone .metric-tile .value { font-weight: 800; }
+    #phone .chip.good { background: #e7f8d4; color: #3f8f2a; }
+    #phone .chip.warn { background: #fff1e4; color: #b86a2a; }
+    #phone .nav {
+      background: #fff;
+      border-top: 0;
+      box-shadow: 0 -8px 18px rgba(46, 50, 48, 0.05);
+    }
+    #phone .nav .item.active .ico-wrap,
+    #phone .nav a.active .ico-wrap {
+      background: #c8eeb0;
+      color: #4e9434;
+    }
+    #phone .nav .item.active, #phone .nav a.active { color: #4e9434; }
+    #phone .soft-card.primary {
+      background: linear-gradient(180deg, #f3fbff 0%, #fff 42%, #f4fbe8 100%);
+      color: #243028;
+    }
+    #phone .plan-hero .crop-name,
+    #phone .plan-hero .sci,
+    #phone .plan-hero .meta { color: #243028; }
+    #phone .plan-hero .chip { background: #e7f8d4; color: #3f8f2a; }
+    #phone .day-card, #phone .phase-card, #phone .week-day { border-radius: 18px; }
+    #phone .week-day.today { background: #6aaf45; color: #243028; }
+    #phone .filter-pill.on {
+      background: #6aaf45;
+      color: #243028;
+      border-color: #6aaf45;
+    }
+    .login-screen { background: transparent; }
+    .login-hero {
+      height: 34%;
+      min-height: 180px;
+      position: relative;
+      background: linear-gradient(180deg, #d7f0fb 0%, #e7f6c8 78%, #d5eea4 100%);
+      flex-shrink: 0;
+    }
+    .login-hero img { width: 100%; height: 100%; object-fit: cover; object-position: center 40%; display: block; }
+    .hero-bar {
+      position: absolute; top: 14px; left: 14px; right: 14px;
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--display); font-weight: 700; font-size: 20px;
+    }
+    .back {
+      width: 36px; height: 36px; border: 0; border-radius: 50%; background: #fff;
+      display: grid; place-items: center; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+    .sheet {
+      flex: 1; min-height: 0; overflow: auto;
+      margin-top: -22px; background: #fbfaf7;
+      border-radius: 28px 28px 0 0; padding: 22px 20px 18px;
+      position: relative; z-index: 1;
+    }
+    .sheet h2 { margin: 0; font-family: var(--display); font-size: 28px; }
+    .auth-field {
+      display: flex; align-items: center; gap: 10px;
+      background: #fff; border: 1.5px solid #d7e0d8; border-radius: 18px;
+      padding: 14px; margin: 6px 0 12px; box-shadow: none;
+    }
+    .auth-field .lbl { display: none; }
+    .fcard {
+      border-radius: 22px; padding: 8px 8px 12px; background: #fff;
+      box-shadow: 0 8px 20px rgba(46, 50, 48, 0.06); border: 2px solid transparent;
+    }
+    .fcard .thumb { height: 112px; border-radius: 16px; overflow: hidden; position: relative; }
+    .fcard .thumb svg { width: 100%; height: 100%; display: block; }
+    .fcard .pill {
+      position: absolute; top: 8px; right: 8px; background: #fff; border-radius: 999px;
+      padding: 3px 8px; font-size: 12px; font-weight: 800;
+    }
+    .fcard h3 { margin: 10px 8px 0; font-size: 17px; }
+    .fcard p { margin: 2px 8px 0; }
+    .hill-strip { height: 54px; border-radius: 16px; overflow: hidden; margin-bottom: 10px; }
+    .hill-strip svg { width: 100%; height: 100%; display: block; }
+    .hello { display: flex; align-items: center; gap: 10px; position: relative; z-index: 2; }
+    .hello .avatar {
+      width: 40px; height: 40px; border-radius: 50%; background: #fff;
+      display: grid; place-items: center; font-weight: 800; color: #4e9434;
+    }
+    .farm-name {
+      border: 0; background: transparent; font: inherit; font-weight: 800; font-size: 18px;
+      padding: 0; cursor: pointer; color: #243028;
+    }
+    .hello .icon-btn { width: 40px; height: 40px; border: 0; display: grid; place-items: center; cursor: pointer; }
+    .home-hero { margin: -16px -16px 0; position: relative; min-height: 250px; }
+    .home-hero img { width: 100%; height: 250px; object-fit: cover; object-position: center 30%; display: block; }
+    .splash-art { width: 100%; height: 210px; object-fit: cover; object-position: center bottom; display: block; }
+    .float-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin: -62px 0 0; position: relative; z-index: 2;
+    }
+    .health, .wx { background: #fff; border-radius: 22px; padding: 12px; box-shadow: 0 8px 20px rgba(46,50,48,.08); }
+    .ring {
+      width: 62px; height: 62px; border-radius: 50%;
+      background: conic-gradient(#e07a3d calc(var(--p) * 1%), #f3f1ec 0);
+      display: grid; place-items: center;
+    }
+    .ring i {
+      width: 46px; height: 46px; border-radius: 50%; background: #fff;
+      display: grid; place-items: center; font-style: normal; font-weight: 800; font-size: 13px;
+    }
+    .qgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .qstat {
+      background: #fff; border-radius: 20px; padding: 12px; text-align: left;
+      border: 0; font: inherit; color: inherit; box-shadow: 0 8px 18px rgba(46,50,48,.05); cursor: pointer;
+    }
+    .qstat b { display: block; font-size: 22px; margin-top: 8px; }
+    .qstat span { color: #5c6760; font-size: 13px; font-weight: 700; }
+    .map-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+    .map-chips button {
+      border: 0; border-radius: 999px; padding: 8px 12px; font: inherit; font-weight: 800;
+      background: #fff; color: #5c6760; cursor: pointer; white-space: nowrap;
+    }
+    .map-chips button.on { background: #243028; color: #fff; }
+    .map-stage {
+      position: relative;
+      height: 300px;
+      margin-top: 12px;
+      overflow: hidden;
+      border-radius: 22px;
+      background: #cfe3b8;
+    }
+    .farm-map {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 8px;
+      height: 100%; margin: 0; padding: 10px;
+      box-sizing: border-box;
+      background: transparent; border-radius: 0;
+      transition: grid-template-columns .4s ease, grid-template-rows .4s ease;
+    }
+    .farm-map.focus-sensor { grid-template-columns: 1.7fr 0.62fr; grid-template-rows: 1.7fr 0.62fr; }
+    .farm-map.focus-tomato { grid-template-columns: 0.62fr 1.7fr; grid-template-rows: 1.7fr 0.62fr; }
+    .farm-map.focus-corn { grid-template-columns: 1.7fr 0.62fr; grid-template-rows: 0.62fr 1.7fr; }
+    .farm-map.is-focused .plot:not(.on)::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(24, 32, 26, 0.5);
+      border-radius: inherit;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .farm-map.is-focused .plot.on {
+      border-color: #8ed15a;
+      box-shadow: 0 0 0 3px rgba(142, 209, 90, 0.55);
+      z-index: 1;
+    }
+    .map-close {
+      position: absolute; top: 10px; right: 10px; z-index: 4;
+      width: 36px; height: 36px; border: 0; border-radius: 999px;
+      background: #fff; color: #243028; cursor: pointer;
+      display: grid; place-items: center;
+      box-shadow: 0 2px 8px rgba(36, 48, 40, 0.16);
+    }
+    .map-close[hidden] { display: none; }
+    #area-detail[hidden], #sensor-block[hidden], #crop-blocks[hidden], #tap-card[hidden] { display: none; }
+    .plot {
+      min-height: 0; height: 100%; border-radius: 16px; border: 3px solid transparent;
+      position: relative; cursor: pointer; font: inherit; color: #243028;
+      overflow: hidden; padding: 0;
+    }
+    .plot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+    .plot.tomato, .plot.corn, .plot.sensor { background: transparent; }
+    .plot.add { background: rgba(255,255,255,.35); border: 1.5px dashed #6aaf45; color: #4e9434; font-weight: 800; display: grid; place-items: center; }
+    .plot.on { border-color: #243028; }
+    .plot-tag {
+      position: absolute; top: 8px; left: 8px; background: #fff; border-radius: 999px;
+      padding: 3px 8px; font-size: 12px; font-weight: 800; z-index: 1;
+    }
+    @media (max-width: 760px) {
+      .studio { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="studio">
+    <aside>
+      <h1>Actual components, new flow</h1>
+      <p class="lede">Home follows the illustrated farm screen. Farm is a map of areas — a farm is more than one crop. Splash stays.</p>
+      <div class="jumps" id="jumps">
+        <button type="button" data-go="splash">Splash<small class="new">NEW</small></button>
+        <button type="button" data-go="login">Login<small class="live">ACTUAL</small></button>
+        <button type="button" data-go="onboard">Onboarding<small class="live">ACTUAL · 4 steps</small></button>
+        <button type="button" data-go="fields">Farm map<small class="new">AREAS</small></button>
+        <button type="button" data-go="home">Home<small class="live">ACTUAL</small></button>
+        <button type="button" data-go="analytics">Analytics<small class="live">ACTUAL</small></button>
+        <button type="button" data-go="crops">One area<small class="live">AFTER TAP</small></button>
+        <button type="button" data-go="profile">Profile<small class="live">ACTUAL</small></button>
+      </div>
+      <div class="parts">
+        <h2>ON THIS SCREEN</h2>
+        <ul id="parts"></ul>
+      </div>
+    </aside>
+
+    <div class="phone" id="phone">
+      <section class="screen" id="splash">
+        <div class="splash">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px 0">
+            <span class="material-symbols-outlined" style="font-size:64px;color:var(--primary)">eco</span>
+            <div class="word">SoilGood</div>
+            <p class="muted">Know your soil before you water</p>
+          </div>
+          <svg viewBox="0 0 390 180" width="100%" height="160" aria-hidden="true">
+            <path d="M0 70 C90 40 150 90 230 60 C300 36 340 50 390 30 L390 180 L0 180Z" fill="#8ed15a"/>
+            <path d="M0 110 C100 86 160 130 240 104 C310 84 350 96 390 82 L390 180 L0 180Z" fill="#6fbf45"/>
+          </svg>
+          <button class="btn btn-filled" style="margin:0 20px 24px" type="button" data-go="login">Continue</button>
+        </div>
+      </section>
+
+      <section class="screen login-screen" id="login">
+        <div class="login-hero">
+          <div class="hero-bar">
+            <button class="back" type="button" data-go="splash" aria-label="Back"><span class="material-symbols-outlined">arrow_back</span></button>
+            SoilGood
+          </div>
+          <img src="assets/farm-banner.jpg" alt="" />
+        </div>
+        <div class="sheet">
+          <h2>Welcome back</h2>
+          <p class="sub" style="margin:6px 0 14px;color:#5c6760">Sign in to access your farm dashboard</p>
+          <div class="auth-field"><span class="material-symbols-outlined">mail</span><b>juan@farm.ph</b></div>
+          <div class="auth-field" style="background:#f3f1ec;border-color:transparent"><span class="material-symbols-outlined">lock</span><span style="flex:1;color:#8a918c">Password</span><span class="material-symbols-outlined">visibility</span></div>
+          <button class="btn btn-filled" type="button" data-go="fields">Sign In</button>
+          <p class="muted" style="text-align:center;margin-top:16px">
+            <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">shield</span>
+            Secure Login
+          </p>
+          <p style="text-align:center;color:#5c6760">Don’t have an account?
+            <button class="btn-text" type="button" data-go="onboard">Create Account</button>
+          </p>
+        </div>
+      </section>
+
+      <section class="screen" id="onboard">
+        <header class="topbar">
+          <h1 class="title" id="onboard-title">Set up your profile</h1>
+        </header>
+        <div class="content">
+          <div class="step on" data-step="1">
+            <div class="soft-card" style="background:#fff">
+              <div class="eyebrow">STEP 1 OF 4</div>
+              <p class="h-title" style="font-family:var(--display);font-size:24px;margin:6px 0">Tell us who you are</p>
+              <p class="body-14" style="margin:0">Next: farm location (GPS + map pin), then link your ESP32.</p>
+            </div>
+            <div class="soft-card stack-12"><b>First name</b><div class="muted">Juan</div></div>
+            <div class="soft-card stack-12"><b>Last name</b><div class="muted">Cruz</div></div>
+            <div class="soft-card stack-12"><b>Barangay</b><div class="muted">Poblacion</div></div>
+            <div class="soft-card stack-12"><b>Municipality / City</b><div class="muted">San Ildefonso</div></div>
+            <div class="soft-card stack-16"><b>Province</b><div class="muted">Bulacan</div></div>
+            <button class="btn btn-filled" type="button" id="on-next">Continue</button>
+          </div>
+          <div class="step" data-step="2">
+            <div class="soft-card" style="background:#fff">
+              <div class="eyebrow">STEP 2 OF 4</div>
+              <p class="h-title" style="font-family:var(--display);font-size:22px;margin:6px 0">Pin your farm on the map</p>
+              <p class="body-14" style="margin:0">We use GPS first. Drag the pin if you are not at the farm.</p>
+            </div>
+            <div class="soft-card stack-16" style="height:180px;background:#d7eadc;display:grid;place-items:center">
+              <span class="material-symbols-outlined" style="font-size:40px;color:var(--error)">location_on</span>
+            </div>
+            <button class="btn btn-filled" type="button" id="on-next-2">Use this location</button>
+          </div>
+          <div class="step" data-step="3">
+            <div class="soft-card" style="background:#fff">
+              <div class="eyebrow">STEP 3 OF 4</div>
+              <p class="h-title" style="font-family:var(--display);font-size:22px;margin:6px 0">Anong klaseng lupa ang farm mo?</p>
+            </div>
+            <button class="choice on" type="button"><b>Loam</b><span>Balanced — hindi masyadong buhangin o putik</span></button>
+            <button class="choice" type="button"><b>Clay</b><span>Sticky — mabagal ang drainage</span></button>
+            <button class="choice" type="button"><b>Not sure</b><span>No texture weight in crop match</span></button>
+            <p class="tiny">Series: Skip kung hindi mo sure.</p>
+            <button class="btn btn-filled stack-12" type="button" id="on-next-3">Continue</button>
+          </div>
+          <div class="step" data-step="4">
+            <div class="soft-card" style="background:#fff">
+              <div class="eyebrow">STEP 4 OF 4</div>
+              <p class="h-title" style="font-family:var(--display);font-size:22px;margin:6px 0">Ilagay ang code sa box</p>
+              <p class="body-14" style="margin:0">Type the claim code written on your SoilGood kit (hal. SG-7K2M).</p>
+            </div>
+            <div class="soft-card stack-16"><b>Claim code</b><div>SG-7K2M</div></div>
+            <button class="btn btn-filled" type="button" data-go="fields">Link sensor</button>
+            <button class="btn-text" style="width:100%" type="button" data-go="fields">Skip for now</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="fields">
+        <div class="content">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div>
+              <h2 class="page-title" style="margin:0">My farm</h2>
+              <p class="muted" style="margin:4px 0 0">San Ildefonso · 2 crop areas</p>
+            </div>
+            <button class="icon-btn" type="button" aria-label="Notifications"><span class="material-symbols-outlined">notifications</span></button>
+          </div>
+          <div class="map-chips stack-16">
+            <button type="button" class="on" id="chip-all">Overview</button>
+            <button type="button" data-field="tomato" data-open="fields">Tomatoes</button>
+            <button type="button" data-field="corn" data-open="fields">Corn</button>
+          </div>
+          <div class="map-stage">
+            <div class="farm-map" id="farm-map">
+              <button class="plot sensor" type="button" data-zoom="sensor">
+                <img src="assets/plot-sensor.jpg" alt="" />
+                <span class="plot-tag">Sensor</span>
+              </button>
+              <button class="plot tomato" type="button" data-field="tomato" data-zoom="tomato">
+                <img src="assets/plot-tomato.jpg" alt="" />
+                <span class="plot-tag">Tomatoes</span>
+              </button>
+              <button class="plot corn" type="button" data-field="corn" data-zoom="corn">
+                <img src="assets/plot-corn.jpg" alt="" />
+                <span class="plot-tag">Corn</span>
+              </button>
+              <button class="plot add" type="button">+ Area</button>
+            </div>
+            <button class="map-close" id="map-close" type="button" hidden aria-label="Back to overview">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+          <div class="soft-card stack-12" id="tap-card">
+            <b>Tap an area</b>
+            <p class="muted" id="map-hint" style="margin:4px 0 0">2 areas on this farm. Each one has its own soil story.</p>
+          </div>
+          <div id="area-detail" hidden>
+            <div id="sensor-block" class="soft-card stack-12" hidden>
+              <div class="eyebrow">THIS SPOT</div>
+              <p class="tip-title" style="margin:6px 0 0">Sensor kit</p>
+              <p class="muted" style="margin:4px 0 0">Online in this corner of the farm. Readings from here feed the area next to it.</p>
+            </div>
+            <div id="crop-blocks">
+              <div class="soft-card stack-12">
+                <div class="eyebrow">UNTIL HARVEST</div>
+                <p class="crop-name" id="crop-harvest" style="font-family:var(--display);font-size:40px;margin:4px 0 0">37 days</p>
+                <p class="muted" id="crop-meta" style="margin:4px 0 0">Tomato · flowering · Oct 14</p>
+              </div>
+              <div class="soft-card stack-12">
+                <div class="eyebrow">TODAY</div>
+                <p class="tip-title" id="crop-today" style="font-size:20px;margin:6px 0">Water, then stop when the top soil feels cool</p>
+                <button class="btn btn-filled" type="button">Mark watered</button>
+              </div>
+              <div class="soft-card stack-12">
+                <p class="body-14" id="crop-care" style="margin:0">Keep flowers dry. Water the soil, not the leaves.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="home">
+        <div class="content">
+          <div class="home-hero">
+            <div class="hello" style="position:absolute;top:12px;left:16px;right:16px">
+              <div class="avatar">J</div>
+              <div style="flex:1">
+                <div class="muted" style="font-size:13px">Good afternoon, Juan</div>
+                <button class="farm-name" type="button" data-go="fields" id="farm-name">Tomato field ▾</button>
+              </div>
+              <button class="icon-btn" type="button" aria-label="Notifications" style="background:#fff;border-radius:50%">
+                <span class="material-symbols-outlined">notifications</span>
+              </button>
+            </div>
+            <img src="assets/farm-banner.jpg" alt="" />
+          </div>
+          <div class="float-row">
+            <div class="health">
+              <div class="ring" id="health-ring" style="--p:28"><i id="health-pct">28%</i></div>
+              <b id="health-label" style="display:block;margin-top:8px">Needs water</b>
+              <span class="muted" style="font-size:12px">Soil on this area</span>
+            </div>
+            <div class="wx">
+              <span class="material-symbols-outlined" style="color:#e0a100">wb_sunny</span>
+              <b style="display:block;font-size:26px;margin-top:4px">32°C</b>
+              <span class="muted">Sunny</span>
+              <div class="muted" style="font-size:12px;margin-top:6px">40% rain tomorrow</div>
+            </div>
+          </div>
+          <div class="eyebrow stack-16">AI FOR THIS AREA</div>
+          <div class="soft-card" style="margin-top:8px">
+            <div class="tip-head"><span class="slot-label">Condition</span><span class="chip good" id="ai-condition-chip">Okay</span></div>
+            <p class="tip-title" id="ai-condition" style="margin:6px 0 0">Soil is warm and a bit dry</p>
+          </div>
+          <div class="soft-card stack-12">
+            <div class="tip-head"><span class="slot-label">Water today</span><span class="chip warn">Water now</span></div>
+            <p class="tip-title" id="ai-water" style="margin:6px 0 0">Water this morning</p>
+          </div>
+          <div class="soft-card stack-12">
+            <div class="tip-head"><span class="slot-label">Nutrients</span><span class="chip good">Hold</span></div>
+            <p class="tip-title" id="ai-nutrient" style="margin:6px 0 0">Wait until after you water</p>
+          </div>
+          <h2 class="page-title stack-16" style="font-size:22px">Quick stats</h2>
+          <div class="qgrid stack-12">
+            <button class="qstat" type="button" data-go="fields"><span class="material-symbols-outlined">psychiatry</span><b>2</b><span>Areas</span></button>
+            <button class="qstat" type="button" data-go="crops"><span class="material-symbols-outlined">water_drop</span><b id="stat-moisture">28%</b><span>Soil moisture</span></button>
+            <button class="qstat" type="button" data-go="crops"><span class="material-symbols-outlined">eco</span><b id="stat-harvest">37 days</b><span id="stat-crop">Tomato harvest</span></button>
+            <button class="qstat" type="button" data-go="crops"><span class="material-symbols-outlined">opacity</span><b id="stat-water">Water</b><span id="stat-water-sub">This morning</span></button>
+          </div>
+          <div class="section-header stack-24">
+            <span class="material-symbols-outlined">sensors</span>
+            <h2>The numbers</h2>
+          </div>
+          <div class="sensor-grid stack-12" id="sensor-grid"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="analytics">
+        <header class="topbar">
+          <span class="material-symbols-outlined" style="color:var(--primary)">insights</span>
+          <h1 class="title">Analytics</h1>
+          <button class="icon-btn" type="button" aria-label="Notifications"><span class="material-symbols-outlined">notifications</span></button>
+        </header>
+        <div class="content">
+          <h2 class="page-title">This week</h2>
+          <div class="filter-bar stack-12">
+            <span class="filter-pill on">This week ▾</span>
+            <span class="filter-pill">Moisture ▾</span>
+          </div>
+          <div class="soft-card stack-16">
+            <p class="body-14" id="analytics-note" style="margin:0">It dried early, then Wednesday’s rain brought it back. Nitrogen is still the weak spot.</p>
+            <p class="tip-title" id="analytics-next" style="font-size:18px;margin:10px 0 0">Keep morning watering. Skip a slot after a real rain.</p>
+          </div>
+          <div class="soft-card stack-12">
+            <div class="eyebrow">MOISTURE</div>
+            <div class="bars stack-12">
+              <div class="bar irrigated" style="height:42%" data-d="S"></div>
+              <div class="bar irrigated" style="height:35%" data-d="M"></div>
+              <div class="bar" style="height:48%" data-d="T"></div>
+              <div class="bar" style="height:70%" data-d="W"></div>
+              <div class="bar" style="height:62%" data-d="T"></div>
+              <div class="bar" style="height:55%" data-d="F"></div>
+              <div class="bar" style="height:50%" data-d="S"></div>
+            </div>
+          </div>
+          <div class="stat-grid stack-12">
+            <div class="soft-card stat"><div class="n">18</div><div class="l">mm rain</div></div>
+            <div class="soft-card stat"><div class="n">2</div><div class="l">times watered</div></div>
+            <div class="soft-card stat"><div class="n">1</div><div class="l">skipped</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="crops">
+        <header class="topbar">
+          <span class="material-symbols-outlined" style="color:var(--primary)">eco</span>
+          <h1 class="title">Crops</h1>
+          <button class="icon-btn" type="button" aria-label="Notifications"><span class="material-symbols-outlined">notifications</span></button>
+        </header>
+        <div class="content">
+          <button class="btn-text" type="button" data-go="fields">← All areas</button>
+          <div class="soft-card">
+            <div class="eyebrow">UNTIL HARVEST</div>
+            <p class="crop-name" style="font-family:var(--display);font-size:40px;margin:4px 0 0">37 days</p>
+            <p class="muted" style="margin:4px 0 0">Tomato · flowering · Oct 14</p>
+          </div>
+          <div class="soft-card stack-12">
+            <div class="eyebrow">TODAY</div>
+            <p class="tip-title" style="font-size:20px;margin:6px 0">Water, then stop when the top soil feels cool</p>
+            <button class="btn btn-filled" type="button">Mark watered</button>
+          </div>
+          <div class="section-header stack-16"><h2>Rest of the week</h2></div>
+          <div class="week-strip stack-12">
+            <div class="week-day done"><span>S</span><span class="material-symbols-outlined">check</span></div>
+            <div class="week-day today selected"><span>M</span><span class="material-symbols-outlined">water_drop</span></div>
+            <div class="week-day"><span>T</span><span class="material-symbols-outlined">visibility</span></div>
+            <div class="week-day"><span>W</span><span class="material-symbols-outlined">rainy</span></div>
+            <div class="week-day"><span>T</span><span class="material-symbols-outlined">visibility</span></div>
+            <div class="week-day"><span>F</span><span class="material-symbols-outlined">water_drop</span></div>
+            <div class="week-day"><span>S</span><span class="material-symbols-outlined">block</span></div>
+          </div>
+          <div class="phase-strip stack-16">
+            <div class="phase-card"><p class="ph-title">Seedling</p><p class="tiny">Done</p></div>
+            <div class="phase-card current"><p class="ph-title">Flowering</p><p class="tiny">Now</p></div>
+            <div class="phase-card"><p class="ph-title">Fruit</p><p class="tiny">Next</p></div>
+            <div class="phase-card"><p class="ph-title">Harvest</p><p class="tiny">Last</p></div>
+          </div>
+          <div class="soft-card stack-12">
+            <p class="body-14" style="margin:0">Keep flowers dry. Water the soil, not the leaves.</p>
+          </div>
+          <div class="text-right"><button class="btn-text" type="button">Change crop</button></div>
+        </div>
+      </section>
+
+      <section class="screen" id="profile">
+        <header class="topbar">
+          <span class="material-symbols-outlined" style="color:var(--primary)">person</span>
+          <h1 class="title">Profile</h1>
+        </header>
+        <div class="content">
+          <div class="soft-card" style="display:flex;gap:14px;align-items:center">
+            <div style="width:56px;height:56px;border-radius:50%;background:rgba(74,124,89,.15);display:grid;place-items:center;color:var(--primary)">
+              <span class="material-symbols-outlined">person</span>
+            </div>
+            <div>
+              <div style="font-family:var(--display);font-weight:700;font-size:20px">Juan Cruz</div>
+              <div class="muted">juan@farm.ph</div>
+            </div>
+          </div>
+          <div class="soft-card stack-12" style="display:flex;justify-content:space-between;align-items:center">
+            <span><b id="profile-field">Tomato field</b><br><span class="muted">San Ildefonso · sensor online</span></span>
+            <button class="btn-text" type="button" data-go="fields">Switch</button>
+          </div>
+          <button class="soft-card stack-12" type="button" data-go="onboard" style="width:100%;text-align:left;font:inherit;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+            <span><b>Edit profile details</b><br><span class="muted">Name and address</span></span>
+            <span class="material-symbols-outlined">chevron_right</span>
+          </button>
+          <button class="soft-card" type="button" data-go="login" style="width:100%;text-align:left;font:inherit;cursor:pointer;color:var(--error);font-weight:800">Sign out</button>
+        </div>
+      </section>
+
+      <nav class="nav" id="nav">
+        <button class="item" type="button" data-go="home"><div class="ico-wrap"><span class="material-symbols-outlined">home</span></div>Home</button>
+        <button class="item" type="button" data-go="fields"><div class="ico-wrap"><span class="material-symbols-outlined">psychiatry</span></div>Farm</button>
+        <button class="item" type="button" data-go="analytics"><div class="ico-wrap"><span class="material-symbols-outlined">monitoring</span></div>Analytics</button>
+        <button class="item" type="button" data-go="profile"><div class="ico-wrap"><span class="material-symbols-outlined">person</span></div>Profile</button>
+      </nav>
+    </div>
+  </div>
+  <script>
+    const shell = new Set(["fields", "home", "analytics", "crops", "profile"]);
+    const parts = {
+      splash: ["Index splash (new — not in the app yet)"],
+      login: ["AuthScaffold", "AuthTextField — Email Address", "AuthTextField — Password", "AuthPrimaryButton — Sign In", "Secure Login", "Create Account"],
+      onboard: ["Step SoftCard", "AuthTextField — name and address", "Map pin + Use this location", "Soil texture choices", "Claim code + Skip for now"],
+      fields: ["Tap an area to zoom in", "Details for that spot sit under the picture"],
+      home: ["Illustrated farm, health, weather", "Then AI — Condition, Water today, Nutrients", "Then Quick stats"],
+      analytics: ["1. What changed, in a sentence", "2. What to do next week", "3. The chart", "4. Rain and watering counts"],
+      crops: ["Opened from a map area", "Days until harvest", "Today’s watering", "Rest of the week"],
+      profile: ["1. Who you are", "2. Which field and sensor", "3. Edit details", "4. Sign out"]
+    };
+    const fields = {
+      tomato: {
+        name: "Tomato field",
+        moisture: "28%",
+        health: "Needs water",
+        ring: 28,
+        waterShort: "This morning",
+        cropLabel: "Tomato harvest",
+        status: "A bit dry",
+        insight: "Moisture is low, and nitrogen is a bit weak while the tomatoes are flowering.",
+        waterTitle: "Water this morning",
+        water: "A light pass is enough. Tomorrow’s rain may let you skip the next one.",
+        note: "It dried early, then Wednesday’s rain brought it back. Nitrogen is still the weak spot.",
+        next: "Keep morning watering. Skip a slot after a real rain.",
+        harvest: "37 days",
+        meta: "Tomato · flowering · Oct 14",
+        today: "Water, then stop when the top soil feels cool",
+        care: "Keep flowers dry. Water the soil, not the leaves.",
+        nutrient: "Wait until after you water",
+        careLine: "Tie soft stems if the afternoon is windy"
+      },
+      corn: {
+        name: "Corn field",
+        moisture: "41%",
+        health: "Watch",
+        ring: 41,
+        waterShort: "This afternoon",
+        cropLabel: "Corn harvest",
+        status: "Watch it",
+        insight: "Corn is a little dry for this height. A short watering today is safer than waiting for Tuesday.",
+        waterTitle: "Water this afternoon",
+        water: "One pass along the rows. Do not flood it.",
+        note: "Moisture slipped three days in a row. Rain later this week may not arrive in time.",
+        next: "Water today. Check again after the next rain before you add nitrogen.",
+        harvest: "24 days",
+        meta: "Corn · growing · Nov 4",
+        today: "Water the rows this afternoon",
+        care: "Don’t add nitrogen until the leaves stop looking pale.",
+        nutrient: "Hold nitrogen for now",
+        careLine: "Keep the base of the stalks clear after you water"
+      }
+    };
+    let current = "tomato";
+    let step = 1;
+
+    function tile(icon, label, value, unit, warn) {
+      return `<div class="soft-card pad-metric metric-tile">
+        <div class="metric-head">
+          <div class="icon-circle" style="background:rgba(74,124,89,.12);color:var(--primary)">
+            <span class="material-symbols-outlined">${icon}</span>
+          </div>
+          ${warn ? '<span class="chip warn">Low</span>' : ""}
+        </div>
+        <div class="label">${label}</div>
+        <div><span class="value">${value}</span>${unit ? `<span class="unit">${unit}</span>` : ""}</div>
+      </div>`;
+    }
+
+    function paintSensors() {
+      const dry = current === "tomato";
+      document.getElementById("sensor-grid").innerHTML = [
+        tile("water_drop", "Moisture", dry ? "28" : "41", "%", true),
+        tile("thermostat", "Temperature", "29.0", "°C", false),
+        tile("science", "pH Level", "6.4", "", false),
+        tile("bolt", "EC", "1.2", "dS/m", false),
+        tile("waves", "Salinity", "0.4", "ppt", false),
+        tile("grass", "Nitrogen", dry ? "42" : "36", "ppm", true),
+        tile("spa", "Phosphorus", "18", "ppm", true),
+        tile("eco", "Potassium", "55", "ppm", true)
+      ].join("");
+    }
+
+    function paintField() {
+      const f = fields[current];
+      document.getElementById("farm-name").textContent = f.name + " ▾";
+      document.getElementById("ai-condition").textContent = f.status;
+      document.getElementById("ai-water").textContent = f.waterTitle;
+      document.getElementById("ai-nutrient").textContent = f.nutrient;
+      document.getElementById("health-pct").textContent = f.moisture;
+      document.getElementById("health-ring").style.setProperty("--p", f.ring);
+      document.getElementById("health-label").textContent = f.health;
+      document.getElementById("stat-moisture").textContent = f.moisture;
+      document.getElementById("stat-harvest").textContent = f.harvest;
+      document.getElementById("stat-crop").textContent = f.cropLabel;
+      document.getElementById("stat-water-sub").textContent = f.waterShort;
+      document.getElementById("map-hint").textContent = f.name + " · " + f.moisture + " moisture · harvest in " + f.harvest;
+      document.getElementById("analytics-note").textContent = f.note;
+      document.getElementById("analytics-next").textContent = f.next;
+      document.getElementById("crop-harvest").textContent = f.harvest;
+      document.getElementById("crop-meta").textContent = f.meta;
+      document.getElementById("crop-today").textContent = f.today;
+      document.getElementById("crop-care").textContent = f.care;
+      document.getElementById("profile-field").textContent = f.name;
+      document.querySelectorAll("[data-field]").forEach((el) => {
+        el.classList.toggle("on", el.dataset.field === current);
+      });
+      paintSensors();
+    }
+
+    function focusMap(key) {
+      const map = document.getElementById("farm-map");
+      map.className = "farm-map is-focused focus-" + key;
+      map.style.transform = "";
+      document.querySelectorAll(".plot").forEach((el) => el.classList.toggle("on", el.dataset.zoom === key));
+      document.querySelectorAll(".map-chips button").forEach((el) => el.classList.toggle("on", el.dataset.field === key));
+      document.getElementById("map-close").hidden = false;
+      document.getElementById("tap-card").hidden = true;
+      const detail = document.getElementById("area-detail");
+      detail.hidden = false;
+      const crop = key === "tomato" || key === "corn";
+      document.getElementById("crop-blocks").hidden = !crop;
+      document.getElementById("sensor-block").hidden = crop;
+      detail.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function resetMap() {
+      const map = document.getElementById("farm-map");
+      map.className = "farm-map";
+      map.style.transform = "";
+      document.querySelectorAll(".plot").forEach((el) => el.classList.remove("on"));
+      document.getElementById("area-detail").hidden = true;
+      document.getElementById("map-close").hidden = true;
+      document.getElementById("tap-card").hidden = false;
+      document.querySelectorAll(".map-chips button").forEach((el) => el.classList.remove("on"));
+      document.getElementById("chip-all").classList.add("on");
+    }
+
+    function showStep(n) {
+      step = n;
+      document.querySelectorAll(".step").forEach((el) => {
+        el.classList.toggle("on", Number(el.dataset.step) === n);
+      });
+      const titles = ["", "Set up your profile", "Farm location", "Uri ng lupa", "Link your sensor"];
+      document.getElementById("onboard-title").textContent = titles[n];
+    }
+
+    function show(id) {
+      document.querySelectorAll(".screen").forEach((el) => el.classList.toggle("on", el.id === id));
+      document.getElementById("phone").classList.toggle("shell", shell.has(id));
+      const tab = id === "crops" ? "fields" : id;
+      document.querySelectorAll("#nav .item").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.go === tab);
+      });
+      document.querySelectorAll("#jumps button").forEach((btn) => {
+        btn.classList.toggle("on", btn.dataset.go === id);
+      });
+      document.getElementById("parts").innerHTML = (parts[id] || []).map((item) => `<li>${item}</li>`).join("");
+      const screen = document.getElementById(id);
+      const scroller = screen && screen.querySelector(".content");
+      if (scroller) scroller.scrollTop = 0;
+    }
+
+    document.body.addEventListener("click", (event) => {
+      const choice = event.target.closest(".choice");
+      if (choice) {
+        choice.parentElement.querySelectorAll(".choice").forEach((el) => el.classList.remove("on"));
+        choice.classList.add("on");
+      }
+      if (event.target.id === "on-next") showStep(2);
+      if (event.target.id === "on-next-2") showStep(3);
+      if (event.target.id === "on-next-3") showStep(4);
+      if (event.target.closest("#map-close")) {
+        resetMap();
+        return;
+      }
+      const zoom = event.target.closest("[data-zoom]");
+      if (zoom) {
+        const key = zoom.dataset.zoom;
+        if (fields[key]) {
+          current = key;
+          paintField();
+        }
+        focusMap(key);
+        return;
+      }
+      const field = event.target.closest("[data-field]");
+      if (field) {
+        current = field.dataset.field;
+        paintField();
+        document.getElementById("chip-all").classList.remove("on");
+        if (field.dataset.open === "fields") {
+          show("fields");
+          focusMap(current);
+        } else {
+          show(field.dataset.open || "home");
+        }
+        return;
+      }
+      if (event.target.id === "chip-all") {
+        document.querySelectorAll(".map-chips button").forEach((el) => el.classList.remove("on"));
+        event.target.classList.add("on");
+        resetMap();
+      }
+      const go = event.target.closest("[data-go]");
+      if (go) {
+        if (go.dataset.go === "onboard") showStep(1);
+        show(go.dataset.go);
+      }
+    });
+
+    paintField();
+    show("splash");
+  </script>
+</body>
+</html>

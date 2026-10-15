@@ -25,7 +25,7 @@ class GroqChatException implements Exception {
 
 /// One POST to `soilgood-insights`; returns the parsed Groq JSON object.
 class GroqChatClient {
-  /// Runs [job] (`home` / `analytics` / `crops.care`) with JSON [userPayload].
+  /// Runs [job] (`home` / `analytics` / `crops.care` / `crops.match`) with JSON [userPayload].
   Future<Map<String, dynamic>> completeJson({
     required String job,
     required Object userPayload,

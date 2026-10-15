@@ -1,7 +1,7 @@
-/// In-tab crop plan body for the Crops shell tab (not a pushed route).
+/// Cultivation plan body: phases, water week, and care tips.
 ///
-/// Shown only when the farm has an active planting: cultivation phases,
-/// day/harvest estimates, and Groq care insights. The shell bottom nav stays.
+/// Shown under the focused crop on the Farm tab, and on the crop list only
+/// when a planting is already active. Not a route by itself.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,10 +10,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/ai/saved_assessment.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/ui_primitives.dart';
+import '../../home/logic/home_ai_story.dart';
+import '../data/irrigation_plan.dart';
 import '../data/planting.dart';
 import '../logic/crop_timeline.dart';
+import 'irrigation_week_plan_card.dart';
 
-/// Cultivation plan + care tips for the selected crop.
+/// Cultivation plan + water plan + care tips for the selected crop.
 class CropPlanView extends StatelessWidget {
   const CropPlanView({
     required this.planting,
@@ -23,6 +26,10 @@ class CropPlanView extends StatelessWidget {
     this.aiError,
     this.aiLoading = false,
     this.actionError,
+    this.irrigationPlan,
+    this.irrigationError,
+    this.markingWater = false,
+    this.onMarkWatered,
     super.key,
   });
 
@@ -33,6 +40,10 @@ class CropPlanView extends StatelessWidget {
   final Object? aiError;
   final bool aiLoading;
   final Object? actionError;
+  final IrrigationPlan? irrigationPlan;
+  final Object? irrigationError;
+  final bool markingWater;
+  final VoidCallback? onMarkWatered;
 
   @override
   Widget build(BuildContext context) {
@@ -129,11 +140,29 @@ class CropPlanView extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 20),
+        if (irrigationPlan != null && irrigationPlan!.slots.isNotEmpty) ...[
+          IrrigationWeekPlanCard(
+            plan: irrigationPlan!,
+            onMarkWatered: onMarkWatered ?? () {},
+            marking: markingWater,
+            error: irrigationError,
+          ),
+          const SizedBox(height: 20),
+        ] else if (irrigationError != null) ...[
+          SoftCard(
+            color: AppColors.errorContainer,
+            child: Text(
+              'Water plan unavailable:\n$irrigationError',
+              style: const TextStyle(color: Color(0xFF690005), height: 1.5),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
         const SectionHeader(title: 'Care insights', icon: Icons.psychology),
         const SizedBox(height: 4),
-        const Text(
-          'How to maintain this crop and soil in the current phase.',
-          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+        Text(
+          'Same tips as Home for this farm’s ${crop.name}.',
+          style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
         ),
         const SizedBox(height: 12),
         if (aiError != null) ...[
@@ -152,25 +181,55 @@ class CropPlanView extends StatelessWidget {
             child: SizedBox(height: 140),
           )
         else if (assessment != null) ...[
-          SoftCard(
-            child: Text(
-              assessment!.overview,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                height: 1.5,
+          if (displayHomeOverview(assessment!).isNotEmpty) ...[
+            SoftCard(
+              child: Text(
+                displayHomeOverview(assessment!),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
               ),
             ),
+            const SizedBox(height: 10),
+          ],
+          _FarmTipCard(
+            slotLabel: 'Condition',
+            icon: Icons.grass,
+            rec: _recOf(assessment!, 'soil_management'),
           ),
           const SizedBox(height: 10),
-          ...assessment!.recommendations.map(
-            (r) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _CareTip(rec: r),
-            ),
+          _FarmTipCard(
+            slotLabel: 'Water today',
+            icon: Icons.water_drop,
+            rec: _recOf(assessment!, 'irrigation'),
+          ),
+          const SizedBox(height: 10),
+          _FarmTipCard(
+            slotLabel: 'Nutrients',
+            icon: Icons.science,
+            rec: _recOf(assessment!, 'nutrient'),
+          ),
+          const SizedBox(height: 10),
+          _FarmTipCard(
+            slotLabel: 'Crop care',
+            icon: Icons.eco_outlined,
+            rec: _recOf(assessment!, 'crop_care'),
           ),
         ],
       ],
     );
+  }
+
+  /// Prefer the Home slot type on this farm's saved tips.
+  static AiRecommendation? _recOf(SavedAssessment a, String type) {
+    for (final r in a.recommendations) {
+      if (r.type == type) return r;
+    }
+    if (type == 'irrigation' && a.recommendations.length == 1) {
+      return a.recommendations.first;
+    }
+    return null;
   }
 
   static String _md(DateTime d) {
@@ -257,18 +316,25 @@ class _PhaseCard extends StatelessWidget {
   }
 }
 
-class _CareTip extends StatelessWidget {
-  const _CareTip({required this.rec});
+/// One Home tip with the action, title, and the longer note Home hides.
+class _FarmTipCard extends StatelessWidget {
+  const _FarmTipCard({
+    required this.slotLabel,
+    required this.icon,
+    required this.rec,
+  });
 
-  final AiRecommendation rec;
+  final String slotLabel;
+  final IconData icon;
+  final AiRecommendation? rec;
 
   @override
   Widget build(BuildContext context) {
-    final icon = switch (rec.type) {
-      'irrigation' => Icons.water_drop,
-      'nutrient' => Icons.science,
-      _ => Icons.grass,
-    };
+    final action = rec?.recommendedAction.trim() ?? '';
+    final title = (rec == null || rec!.title.trim().isEmpty)
+        ? 'No tip saved yet'
+        : rec!.title;
+    final detail = rec?.description.trim() ?? '';
 
     return SoftCard(
       child: Row(
@@ -288,29 +354,36 @@ class _CareTip extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  rec.title,
-                  maxLines: 2,
+                  slotLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                if (action.isNotEmpty)
+                  Text(
+                    action,
+                    style: GoogleFonts.literata(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                      height: 1.3,
+                    ),
+                  ),
+                Text(
+                  title,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-                Text(
-                  rec.recommendedAction.isNotEmpty
-                      ? rec.recommendedAction
-                      : rec.description,
-                  style: GoogleFonts.literata(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                    height: 1.3,
-                  ),
-                ),
-                if (rec.description.isNotEmpty &&
-                    rec.recommendedAction.isNotEmpty)
+                if (detail.isNotEmpty)
                   Text(
-                    rec.description,
+                    detail,
                     style: const TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 12,
+                      fontSize: 13,
                       height: 1.4,
                     ),
                   ),

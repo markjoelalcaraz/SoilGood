@@ -35,6 +35,7 @@ Farmers, farm owners, and agricultural practitioners
 5. Develop an analytics module (trends and future-oriented insights from historical data).
 
 ## Related docs
+- [SYSTEM_FLOWCHART.md](SYSTEM_FLOWCHART.md) — full system Mermaid flowcharts
 - [FEATURES.md](FEATURES.md)
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [BACKEND.md](BACKEND.md)

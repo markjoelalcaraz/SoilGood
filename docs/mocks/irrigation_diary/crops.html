@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crops plan mock — SoilGood actual UI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,700;1,7..72,700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@24,400,0..1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body style="background:var(--surface-muted)">
+  <p class="back-link">
+    <a href="index.html">← All mocks</a> · Crops plan ·
+    <a href="crops-no-planting.html">no planting</a>
+  </p>
+  <div class="phone solo">
+    <header class="topbar">
+      <span class="material-symbols-outlined" style="color:var(--primary)">eco</span>
+      <h1 class="title">Crops</h1>
+      <button class="icon-btn" type="button"><span class="material-symbols-outlined">notifications</span></button>
+    </header>
+    <div class="content">
+      <div class="soft-card primary pad-lg plan-hero">
+        <span class="chip">ACTIVE PLAN</span>
+        <p class="crop-name">Tomato</p>
+        <p class="sci">Solanum lycopersicum</p>
+        <p class="meta">Day 38 of 75 · 37 days to harvest · Oct 14</p>
+      </div>
+      <div class="text-right"><button class="btn-text" type="button">Change crop</button></div>
+
+      <div class="section-header"><h2>Cultivation Phases</h2></div>
+      <div class="phase-strip stack-12">
+        <div class="phase-card">
+          <span class="material-symbols-outlined" style="color:var(--primary);font-size:18px">check_circle</span>
+          <p class="ph-title">Seedling</p>
+          <p class="tiny">14 days</p>
+        </div>
+        <div class="phase-card current">
+          <div style="display:flex;justify-content:space-between">
+            <span class="material-symbols-outlined" style="color:var(--primary);font-size:18px">radio_button_checked</span>
+            <span class="chip good">NOW</span>
+          </div>
+          <p class="ph-title">Flowering</p>
+          <p class="tiny">21 days</p>
+        </div>
+        <div class="phase-card">
+          <span class="material-symbols-outlined" style="color:var(--text-secondary);font-size:18px">circle</span>
+          <p class="ph-title">Fruiting</p>
+          <p class="tiny">25 days</p>
+        </div>
+        <div class="phase-card">
+          <span class="material-symbols-outlined" style="color:var(--text-secondary);font-size:18px">circle</span>
+          <p class="ph-title">Harvest</p>
+          <p class="tiny">15 days</p>
+        </div>
+      </div>
+
+      <div class="proposed-block stack-16">
+        <span class="proposed-label">Proposed</span>
+        <div class="section-header">
+          <span class="material-symbols-outlined">calendar_month</span>
+          <h2>This week’s water plan</h2>
+        </div>
+        <p class="tiny stack-4">7-day horizon · not 7 waterings · icons = need / rain / done</p>
+        <div class="week-strip stack-12" role="list">
+          <div class="week-day done" title="Sun watered">
+            <span>S</span>
+            <span class="material-symbols-outlined">check</span>
+          </div>
+          <div class="week-day today selected" title="Mon today — water">
+            <span>M</span>
+            <span class="material-symbols-outlined">water_drop</span>
+          </div>
+          <div class="week-day" title="Tue — check only">
+            <span>T</span>
+            <span class="material-symbols-outlined">visibility</span>
+          </div>
+          <div class="week-day" title="Wed — likely no water">
+            <span>W</span>
+            <span class="material-symbols-outlined">rainy</span>
+          </div>
+          <div class="week-day" title="Thu — check after rain">
+            <span>T</span>
+            <span class="material-symbols-outlined">visibility</span>
+          </div>
+          <div class="week-day" title="Fri — water if still dry">
+            <span>F</span>
+            <span class="material-symbols-outlined">water_drop</span>
+          </div>
+          <div class="week-day" title="Sat — likely rest">
+            <span>S</span>
+            <span class="material-symbols-outlined">block</span>
+          </div>
+        </div>
+        <div class="soft-card surface today-detail" id="slot-mon">
+          <div>
+            <div class="what">Water today · stop when top soil cools</div>
+            <div class="why">Only ~2–3 water days this week · Mon needed because soil dried fast</div>
+          </div>
+          <button class="btn-slot" type="button" onclick="logSlot('slot-mon', 'Mon')">Mark watered</button>
+        </div>
+      </div>
+
+      <div class="section-header stack-16">
+        <span class="material-symbols-outlined">psychology</span>
+        <h2>Care insights</h2>
+      </div>
+      <p class="muted stack-4" style="font-size:14px">
+        Phase-tied · same voice · <strong>no water/NPK orders</strong> (those are other cards).
+      </p>
+      <div class="soft-card stack-12">
+        <p class="body-14" style="margin:0">Keep water steady while flowers set. Prefer morning water.</p>
+      </div>
+      <div class="soft-card stack-10">
+        <div class="tip-row">
+          <div class="tip-icon"><span class="material-symbols-outlined">water_drop</span></div>
+          <div>
+            <div style="font-weight:700">Steady moisture</div>
+            <p class="tip-title care-action">Light morning water today</p>
+            <p class="tiny" style="margin:4px 0 0">Do not flood after heavy rain on Wed.</p>
+          </div>
+        </div>
+      </div>
+      <div class="soft-card stack-10">
+        <div class="tip-row">
+          <div class="tip-icon"><span class="material-symbols-outlined">science</span></div>
+          <div>
+            <div style="font-weight:700">Hold heavy N</div>
+            <p class="tip-title care-action">Wait until after watering</p>
+            <p class="tiny" style="margin:4px 0 0">Flowering prefers steady K more than more N.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="home.html"><div class="ico-wrap"><span class="material-symbols-outlined">home</span></div>Home</a>
+      <a href="analytics.html"><div class="ico-wrap"><span class="material-symbols-outlined">insights</span></div>Analytics</a>
+      <div class="item active"><div class="ico-wrap"><span class="material-symbols-outlined">eco</span></div>Crops</div>
+      <div class="item"><div class="ico-wrap"><span class="material-symbols-outlined">person</span></div>Profile</div>
+    </nav>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      clearTimeout(window.__t);
+      window.__t = setTimeout(() => el.classList.remove("show"), 1800);
+    }
+    function logSlot(id, day) {
+      const slot = document.getElementById(id);
+      if (!slot) return;
+      const btn = slot.querySelector(".btn-slot");
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Done";
+      }
+      const what = slot.querySelector(".what");
+      if (what) what.textContent = "Watered";
+      const why = slot.querySelector(".why");
+      if (why) why.textContent = day + " · logged just now";
+      const todayPill = document.querySelector(".week-day.today");
+      if (todayPill) {
+        todayPill.classList.add("done");
+        todayPill.innerHTML =
+          "<span>M</span><span class=\"material-symbols-outlined\">check</span>";
+      }
+      toast(day + " logged · irrigation");
+    }
+  </script>
+</body>
+</html>

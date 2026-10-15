@@ -1,0 +1,27 @@
+flowchart TB
+  SHELL[Persistent chrome: TopBar + BottomNav]
+
+  SHELL --> H[Home]
+  SHELL --> A[Analytics]
+  SHELL --> C[Crops]
+  SHELL --> P[Profile]
+
+  H --> H1[Latest 8-in-1 only]
+  H --> H2[Open-Meteo forecast strip]
+  H --> H3[Groq Home AI: Condition / Water today / Nutrients / Crop care]
+  H --> H4[Realtime soil + AI recheck]
+
+  A --> A1[Period filters + daily buckets RPC]
+  A --> A2[Trend chart + period weather]
+  A --> A3[Mark watered logs]
+  A --> A4[Groq Analytics AI for period_start/end]
+  A --> A5[Tap day → DayReadingsPage]
+
+  C --> C1[Catalog match local — no Groq]
+  C --> C2[Active planting plan + phases]
+  C --> C3[7-day water plan rules_v1]
+  C --> C4[Mark watered → farm_actions]
+  C --> C5[Groq crops.care phase chores]
+
+  P --> P1[profiles + auth email]
+  P --> P2[Edit / Sign out]

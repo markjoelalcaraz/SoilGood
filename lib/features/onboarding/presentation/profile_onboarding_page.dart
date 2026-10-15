@@ -138,7 +138,7 @@ class _ProfileOnboardingPageState extends State<ProfileOnboardingPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Step 1 of 3',
+                          'Step 1 of 4',
                           style: TextStyle(
                             color: AppColors.primary.withValues(alpha: 0.9),
                             fontWeight: FontWeight.w800,

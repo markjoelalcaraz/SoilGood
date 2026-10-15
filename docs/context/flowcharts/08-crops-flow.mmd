@@ -1,0 +1,26 @@
+flowchart TD
+  A[Open Crops] --> B[Load farm planting soil catalog weather]
+  B --> C{Active planting?}
+  C -->|No| D[8-in-1 + weather chips + ranked matches]
+  D --> E[Confirm Plant name today?]
+  E -->|Yes| F[Insert plantings status=active]
+  F --> G
+  C -->|Yes| G[Crop plan UI]
+
+  G --> H[Phases + day N of maturity]
+  G --> I{Water plan fingerprint / day / expiry?}
+  I -->|Reuse| J[Show irrigation_plan_slots]
+  I -->|Rebuild| K[IrrigationPlanBuilder rules_v1]
+  K --> J
+
+  J --> L[Today: Mark watered]
+  L --> M[farm_actions + completed_action_id]
+
+  G --> N[Load kind=crops AI]
+  N --> O{Regen?}
+  O -->|No| P[Care insights]
+  O -->|Yes| Q[soilgood-insights job=crops.care]
+  Q --> P
+
+  G --> R[Change crop → replaced]
+  R --> D

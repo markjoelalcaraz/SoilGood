@@ -31,6 +31,17 @@
 
   <title>SoilGood</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    // Keep the reset-link address. Flutter's web loader can replace the hash
+    // before Dart reads it, which drops the recovery token and shows login.
+    (function () {
+      var href = window.location.href;
+      if (/[?#&](code|access_token|token_hash|error_description)=/.test(href) ||
+          href.indexOf('type=recovery') !== -1) {
+        sessionStorage.setItem('soilgood.authCallback', href);
+      }
+    })();
+  </script>
   <style>
     html {
       scrollbar-width: thin;
@@ -43,6 +54,8 @@
       border-radius: 8px;
     }
   </style>
+  <!-- Option B: USB serial from Chrome Admin (SGCFG flash). -->
+  <script src="soilgood_serial.js"></script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

@@ -1,0 +1,42 @@
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#FFFFFF', 'primaryTextColor': '#243028', 'primaryBorderColor': '#62A844', 'lineColor': '#4E9434', 'secondaryColor': '#C8EEB0', 'tertiaryColor': '#F6F8F3', 'background': '#F6F8F3', 'mainBkg': '#FFFFFF', 'nodeBorder': '#62A844', 'clusterBkg': '#F3F8EF', 'clusterBorder': '#6AAF45', 'titleColor': '#243028', 'edgeLabelBackground': '#F6F8F3', 'fontFamily': 'Nunito Sans, sans-serif'}}}%%
+flowchart LR
+  subgraph Lab["Lab"]
+    AD[Admin Web Devices]
+    LF[Lab Flasher backup]
+  end
+
+  subgraph HW["Hardware"]
+    ESP[ESP32 + 8-in-1]
+  end
+
+  subgraph Cloud["Supabase"]
+    AUTH[Auth + RLS]
+    PG[(Postgres)]
+    RT[Realtime]
+    EF[Insights function]
+  end
+
+  subgraph Ext["External APIs"]
+    OM[Open-Meteo]
+    GQ[Groq model]
+  end
+
+  subgraph App["Flutter app"]
+    FG[Farmer app shell]
+    AG[Admin web chrome]
+  end
+
+  AD --> PG
+  LF --> ESP
+  AD -->|SGCFG USB| ESP
+  ESP -->|ingest_soil_reading| PG
+  PG --> RT
+  RT --> FG
+  FG --> AUTH
+  FG --> PG
+  FG --> OM
+  FG -->|JWT invoke| EF
+  EF --> GQ
+  EF --> PG
+  AG --> AUTH
+  AG --> PG

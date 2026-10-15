@@ -1,4 +1,4 @@
-/// Home “today” insight client — Condition, Water today, and Nutrients tips.
+/// Home “today” insight client — Condition, Water, Nutrients, and Crop care.
 ///
 /// Home dashboard only. Sends classified facts (+ optional crop/phase) to the
 /// Edge Function; the function attaches `prompts.home` from insights.json.
@@ -13,7 +13,7 @@ import '../../../core/ai/saved_assessment.dart';
 import '../../weather/data/weather_models.dart';
 import '../data/soil_reading.dart';
 
-/// Calls the insights API for today’s three Home tips.
+/// Calls the insights API for today’s Home tip slots.
 class HomeAiClient {
   HomeAiClient({GroqChatClient? chat}) : _chat = chat ?? GroqChatClient();
 
@@ -76,13 +76,18 @@ class HomeAiClient {
     );
 
     final allowed = hasCrop
-        ? const {'soil_management', 'irrigation', 'nutrient'}
+        ? const {
+            'soil_management',
+            'irrigation',
+            'nutrient',
+            'crop_care',
+          }
         : const {'soil_management', 'irrigation'};
 
     return parseAiInsightJson(
       json,
       allowedTypes: allowed,
-      maxRecommendations: hasCrop ? 3 : 2,
+      maxRecommendations: hasCrop ? 4 : 2,
     );
   }
 }

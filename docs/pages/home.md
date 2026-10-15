@@ -2,17 +2,17 @@
 
 ## Status
 - [ ] Planned
-- [x] In progress (live soil + weather + three Groq tips)
+- [x] In progress (live soil + weather + Home tips including Crop care)
 - [ ] Done
 
 ## Purpose / goal
-**Now.** Answer today: what is the soil condition, should I water, and (if a crop is set) what about fertilizer?
+**Now.** Answer today: what is the soil condition (in words), should I water, fertilizer if planted, and phase crop care?
 
-Show the latest soil condition, live 8-in-1 values, a short forecast, and **three** AI cards: Condition, Water today, Nutrients. This is not a history or monthly-average page — that is [Analytics](analytics.md).
+Show the latest soil condition, live 8-in-1 values, a short forecast, and AI cards: Condition, Water today, Nutrients, and **Crop care** when planted. Weekly water plan lives on [Crops](crops.md). History is [Analytics](analytics.md).
 
 ## User flow
 - Open Home tab from app shell.
-- Scan overall condition → compact 8-in-1 sensor cards → 3-day forecast → three AI tips.
+- Scan the farm picture, soil moisture and weather, AI cards, quick stats, then the 8-in-1 numbers and forecast.
 - **Realtime:** a new `soil_readings` row updates sensor cards and **rechecks** Home AI (usually reuse saved tips; Groq only if story fingerprint / cache says so). No pull required for tip updates while Home is open.
 - **Pull-to-refresh** still refetches soil + weather + AI path (weather is not Realtime). Forecast strip stays horizontal-only.
 - Nutrients CTA (no crop): open Crops tab to add a planting.
@@ -23,17 +23,19 @@ Show the latest soil condition, live 8-in-1 values, a short forecast, and **thre
 **On Home**
 - Latest reading only (timestamp + stale/error must be visible).
 - Live 8-in-1 grid (the only place current sensor values are shown).
-- Short forecast (today–3 days) for watering *today*.
-- Three AI cards tied to latest soil + weather (+ active crop when set):
-  1. **Condition** (`soil_management`) — alert or “soil looks fine”
-  2. **Water today** (`irrigation`) — water / wait / check sensor
-  3. **Nutrients** (`nutrient`) — crop-aware fertilizer tip, or CTA if no planting
+- Quick Insight: whole-soil condition **in words** (bands), not raw “moisture 28% · N 42”.
+- Short forecast strip (UI may show ~3 days; Open-Meteo fetch is **7 days** for the Crops water plan).
+- AI cards tied to latest soil + weather (+ active crop when set):
+  1. **Condition** (`soil_management`)
+  2. **Water today** (`irrigation`) — override for *today*; does not alone rewrite the week plan
+  3. **Nutrients** (`nutrient`) — or CTA if no planting
+  4. **Crop care** (`crop_care`) — phase chores only when planted (no water/NPK orders)
 
 **Not on Home**
-- Monthly / 7-day averages, multi-metric trend charts, nutrient-depletion stories.
-- Browseable history (day list of past readings).
-- Weather–soil correlation or seasonal crop fit from history.
-- Overview essay above the three cards (Condition carries status).
+- Mark watered / week strip (Crops only).
+- Monthly / 7-day averages, multi-metric trend charts.
+- Browseable history.
+- Overview essay above the tip cards.
 
 ## AI voice (locked)
 Caring neighbor farmer, **simple English**. Warm, calm, 2–4 short sentences with a why + next step. No deep vocabulary, no chatbot tone, no em dash habit. Mention **sensor only when the reading looks wrong**. Never refer the farmer to a farm officer / DA / extension. Rules live in [`insights.json`](../../supabase/functions/soilgood-insights/insights.json) `voice` + `prompts.home`. See [AI_INSIGHTS.md](../context/AI_INSIGHTS.md).

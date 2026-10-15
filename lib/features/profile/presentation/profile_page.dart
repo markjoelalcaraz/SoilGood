@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/supabase/supabase_bootstrap.dart';
+import '../../../core/live/farm_live_hub.dart';
+import '../../../core/live/live_page.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/data/refresh_timeout.dart';
 import '../../../shared/navigation/app_page_routes.dart';
@@ -17,6 +19,7 @@ import '../../auth/data/auth_repository.dart';
 import '../../onboarding/data/onboarding_repository.dart';
 import '../../onboarding/presentation/profile_onboarding_page.dart';
 import '../../shell/app_shell.dart';
+import 'sensors_page.dart';
 
 /// Account / profile hub with the farmer’s saved name and email.
 class ProfilePage extends StatefulWidget {
@@ -26,12 +29,19 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends State<ProfilePage> with LivePage {
   final _onboarding = OnboardingRepository();
 
   bool _loadDone = false;
   Object? _loadError;
   String _displayName = '';
+
+  @override
+  Set<LiveSource> get liveSources => const {LiveSource.profiles};
+
+  /// The saved name changed on another screen. Keep the page, then reload.
+  @override
+  Future<void> onLive(Set<LiveSource> changed) => _loadProfile();
 
   @override
   void initState() {
@@ -156,18 +166,23 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 10),
           SoftCard(
+            onTap: () {
+              Navigator.of(
+                context,
+              ).push(AppPageRoutes.slideFromRight(const SensorsPage()));
+            },
             child: const ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
-                Icons.agriculture_outlined,
+                Icons.sensors,
                 color: AppColors.primary,
               ),
               title: Text(
-                'Farm & device',
+                'Sensors',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
-              subtitle: Text('Location + ESP32 claim — coming next'),
-              trailing: Icon(Icons.lock_outline, size: 18),
+              subtitle: Text('Add a kit and choose its plot'),
+              trailing: Icon(Icons.chevron_right),
             ),
           ),
           const SizedBox(height: 10),

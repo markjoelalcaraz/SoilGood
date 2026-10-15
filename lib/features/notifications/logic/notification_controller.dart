@@ -13,6 +13,7 @@ import '../../../core/ai/crop_band_classify.dart';
 import '../../../core/ai/insights_config.dart';
 import '../../crops/data/crops_repository.dart';
 import '../../crops/logic/crop_timeline.dart';
+import '../../farm/data/plot_sensors_repository.dart';
 import '../../home/data/soil_reading.dart';
 import '../../home/data/soil_readings_repository.dart';
 import '../../weather/data/farm_location_repository.dart';
@@ -29,12 +30,14 @@ class NotificationController extends ChangeNotifier {
     OpenMeteoWeatherService? weatherService,
     NotificationsRepository? notificationsRepo,
     CropsRepository? cropsRepo,
+    PlotSensorsRepository? sensorsRepo,
     NotificationEvaluator? evaluator,
   }) : _soilRepo = soilRepo ?? SoilReadingsRepository(),
        _farmRepo = farmRepo ?? FarmLocationRepository(),
        _weatherService = weatherService ?? OpenMeteoWeatherService(),
        _notificationsRepo = notificationsRepo ?? NotificationsRepository(),
        _cropsRepo = cropsRepo ?? CropsRepository(),
+       _sensorsRepo = sensorsRepo ?? PlotSensorsRepository(),
        _evaluator = evaluator ?? const NotificationEvaluator();
 
   final SoilReadingsRepository _soilRepo;
@@ -42,6 +45,7 @@ class NotificationController extends ChangeNotifier {
   final OpenMeteoWeatherService _weatherService;
   final NotificationsRepository _notificationsRepo;
   final CropsRepository _cropsRepo;
+  final PlotSensorsRepository _sensorsRepo;
   final NotificationEvaluator _evaluator;
 
   StreamSubscription<SoilReading?>? _soilSub;
@@ -181,11 +185,20 @@ class NotificationController extends ChangeNotifier {
         cropRanges: cropRanges,
       );
 
+      ({String code, String? cropName})? identity;
+      final deviceId = reading.deviceId;
+      if (deviceId != null) {
+        identity = await _sensorsRepo.identityForDevice(deviceId);
+        if (_closed) return;
+      }
+
       final drafts = _evaluator.evaluate(
         farmId: farmId,
         reading: reading,
         facts: facts,
         now: DateTime.now(),
+        sensorCode: identity?.code,
+        deviceId: reading.deviceId,
       );
       if (drafts.isEmpty) return;
 

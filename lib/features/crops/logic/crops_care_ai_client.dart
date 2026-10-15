@@ -1,7 +1,7 @@
-/// Crops care insight client (irrigation, fertilizer, soil) — not catalog scores.
+/// Crops care insight client — phase chores only (not water / fertilizer orders).
 ///
 /// Crops tab only. Sends crop/phase + classified facts to the Edge Function;
-/// the function attaches `prompts.crops.care`. Home has its own three-tip client.
+/// the function attaches `prompts.crops.care`. Home owns Water today / Nutrients.
 library;
 
 import '../../../core/ai/ai_json_parse.dart';
@@ -76,7 +76,7 @@ class CropsCareAiClient {
 
     return parseAiInsightJson(
       json,
-      allowedTypes: const {'irrigation', 'nutrient', 'soil_management'},
+      allowedTypes: const {'soil_management'},
       maxRecommendations: 3,
     );
   }

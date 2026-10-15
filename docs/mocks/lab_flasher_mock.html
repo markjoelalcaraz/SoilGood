@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SoilGood Lab Flasher — one button + port backup</title>
+  <style>
+    :root {
+      --primary: #4a7c59; --primary-soft: #e4efe8; --bg: #f4f6f4; --surface: #fff;
+      --text: #2c2c2c; --muted: #5c645e; --outline: #c5cec7;
+      --font: "Segoe UI", system-ui, sans-serif; --display: Georgia, "Times New Roman", serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; font-family: var(--font); color: var(--text);
+      background: radial-gradient(900px 420px at 10% -10%, #d8e8de 0%, transparent 55%), var(--bg);
+      display: grid; place-items: center; padding: 28px 16px;
+    }
+    .note { max-width: 400px; text-align: center; color: var(--muted); font-size: 0.9rem; line-height: 1.45; margin-bottom: 14px; }
+    .window {
+      width: min(100%, 400px); background: var(--surface); border-radius: 14px;
+      border: 1px solid var(--outline); box-shadow: 0 18px 40px rgba(46,50,48,.12); overflow: hidden;
+    }
+    .titlebar {
+      display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #eef1ee;
+      border-bottom: 1px solid var(--outline); font-size: 0.82rem; font-weight: 600; color: var(--muted);
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot.r { background: #d96b6b; } .dot.y { background: #d2b35a; } .dot.g { background: #6aaf7d; }
+    .body { padding: 18px; }
+    h1 { margin: 0 0 4px; font-family: var(--display); font-size: 1.3rem; color: var(--primary); }
+    .sub { margin: 0 0 14px; color: var(--muted); font-size: 0.88rem; line-height: 1.4; }
+    label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 6px; }
+    input, select {
+      width: 100%; height: 40px; border-radius: 10px; border: 1px solid var(--outline);
+      padding: 0 10px; font: inherit; background: #fafbfa; margin-bottom: 12px;
+    }
+    .port {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 10px 12px; border-radius: 10px; background: var(--primary-soft);
+      color: var(--primary); font-size: 0.86rem; font-weight: 700; margin-bottom: 10px;
+    }
+    .port.bad { background: #f6eaea; color: #a33b3b; }
+    .port button {
+      border: none; background: transparent; color: inherit; font-weight: 800;
+      font-size: 0.75rem; cursor: pointer; text-decoration: underline;
+    }
+    .btn {
+      width: 100%; height: 48px; border: none; border-radius: 12px; font: inherit; font-weight: 800;
+      cursor: pointer; background: var(--primary); color: #fff;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status { margin-top: 10px; font-size: 0.85rem; color: var(--muted); min-height: 1.2em; }
+    .result {
+      margin-top: 14px; padding: 14px; border-radius: 12px; background: var(--primary-soft);
+      text-align: center; display: none;
+    }
+    .result.show { display: block; }
+    .code { font-family: var(--display); font-size: 1.6rem; font-weight: 700; color: var(--primary); }
+    .meta { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+    .demo {
+      margin-top: 16px; max-width: 400px; font-size: 0.8rem; color: var(--muted); text-align: center;
+    }
+    .demo button {
+      margin: 4px; border: 1px solid var(--outline); background: #fff; border-radius: 8px;
+      padding: 6px 10px; cursor: pointer; font: inherit; font-size: 0.78rem;
+    }
+  </style>
+</head>
+<body>
+  <p class="note"><strong>Mock</strong> — auto port; dropdown backup kapag hindi clear. Walang dark terminal log — success card na lang.</p>
+  <div class="window">
+    <div class="titlebar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span style="margin-left:6px">SoilGood Lab Flasher</span>
+    </div>
+    <div class="body">
+      <h1>Lab Flasher</h1>
+      <p class="sub">One button: provision + flash. Port auto-detects when possible.</p>
+
+      <label for="label">Label (optional)</label>
+      <input id="label" type="text" placeholder="Kit #12" />
+
+      <div class="port" id="portPill">
+        <span id="portText">Auto: COM5 · CH340</span>
+        <button type="button" id="changePort" hidden>Change</button>
+      </div>
+      <div id="portDropdownWrap" hidden>
+        <label for="portSelect">Select USB port</label>
+        <select id="portSelect">
+          <option value="COM5">COM5 — USB-SERIAL CH340</option>
+          <option value="COM7">COM7 — CP210x</option>
+          <option value="COM3">COM3 — USB Serial Device</option>
+        </select>
+      </div>
+
+      <button class="btn" id="go" type="button">Provision &amp; Flash</button>
+      <div class="status" id="status"></div>
+
+      <div class="result" id="result">
+        <div class="meta">Write this on the box</div>
+        <div class="code" id="claim">SG-7K2M</div>
+        <div class="meta">Unplug the board · give kit to farmer</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo">
+    Simulate detect:
+    <button type="button" data-mode="one">1 board (auto)</button>
+    <button type="button" data-mode="none">0 board</button>
+    <button type="button" data-mode="many">2+ boards (dropdown)</button>
+  </div>
+
+  <script>
+    const portPill = document.getElementById("portPill");
+    const portText = document.getElementById("portText");
+    const changePort = document.getElementById("changePort");
+    const wrap = document.getElementById("portDropdownWrap");
+    const portSelect = document.getElementById("portSelect");
+    const go = document.getElementById("go");
+    const status = document.getElementById("status");
+    const result = document.getElementById("result");
+    let port = "COM5";
+    let mode = "one";
+
+    function applyMode(m) {
+      mode = m;
+      wrap.hidden = true;
+      changePort.hidden = true;
+      portPill.classList.remove("bad");
+      result.classList.remove("show");
+      status.textContent = "";
+      if (m === "one") {
+        port = "COM5";
+        portText.textContent = "Auto: COM5 · CH340";
+        go.disabled = false;
+      } else if (m === "none") {
+        port = null;
+        portText.textContent = "No ESP32 detected — plug the board";
+        portPill.classList.add("bad");
+        go.disabled = true;
+      } else {
+        port = null;
+        portText.textContent = "Multiple ports — choose one";
+        portPill.classList.add("bad");
+        wrap.hidden = false;
+        go.disabled = !portSelect.value;
+        port = portSelect.value;
+        go.disabled = false;
+      }
+    }
+
+    changePort.addEventListener("click", () => { wrap.hidden = !wrap.hidden; });
+    portSelect.addEventListener("change", () => {
+      port = portSelect.value;
+      portText.textContent = "Selected: " + port;
+      portPill.classList.remove("bad");
+      go.disabled = !port;
+    });
+
+    go.addEventListener("click", async () => {
+      result.classList.remove("show");
+      if (!port) {
+        status.textContent = "Plug an ESP32 (or pick a port), then try again.";
+        return;
+      }
+      go.disabled = true;
+      status.textContent = "Provisioning…";
+      await new Promise((r) => setTimeout(r, 700));
+      status.textContent = "Flashing " + port + "…";
+      await new Promise((r) => setTimeout(r, 1000));
+      status.textContent = "Done.";
+      document.getElementById("claim").textContent = "SG-7K2M";
+      result.classList.add("show");
+      go.disabled = mode === "none";
+      if (mode !== "none") go.disabled = false;
+    });
+
+    document.querySelectorAll(".demo button").forEach((b) => {
+      b.addEventListener("click", () => applyMode(b.dataset.mode));
+    });
+    applyMode("one");
+  </script>
+</body>
+</html>

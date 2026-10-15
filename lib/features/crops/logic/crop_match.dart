@@ -1,16 +1,25 @@
 /// Local catalog match: latest 8-in-1 soil snapshot plus current weather.
 ///
-/// No Groq. Null ranges, null readings, and missing weather are skipped so a
-/// missing column does not invent a score. Used only when no crop is selected.
+/// No Groq for the math itself. Null ranges, null readings, and missing weather
+/// are skipped so a missing column does not invent a score. Used as AI fallback
+/// and to build grounded facts for the `crops.match` job when no crop is selected.
 library;
 
+import '../../../core/ai/crop_band_classify.dart';
+import '../../../core/soil/soil_series.dart';
+import '../../../core/soil/soil_texture.dart';
 import '../../analytics/logic/manila_time.dart';
 import '../../home/data/soil_reading.dart';
 import '../../weather/data/weather_models.dart';
 import '../data/crop_catalog.dart';
+import '../data/crop_series_fit.dart';
+import '../data/crop_texture_fit.dart';
 
 /// Minimum percent in-range to show as “suitable”.
 const kSuitableMatchPercent = 50;
+
+/// Max AI (or local) match cards on the Crops list.
+const kMaxMatchCards = 8;
 
 /// Wet-season crop wants rain likely in the next few days.
 const _kWetRainProbMin = 40.0;
@@ -40,26 +49,126 @@ List<CropMatch> scoreCropMatches({
   required SoilReading reading,
   required List<CropCatalogEntry> catalog,
   WeatherSnapshot? weather,
+  SoilTexture? farmSoilTexture,
+  SoilSeries? farmSoilSeries,
 }) {
   final matches = <CropMatch>[];
   for (final crop in catalog) {
-    final scored = _scoreOne(reading, crop, weather);
+    final scored = _scoreOne(
+      reading,
+      crop,
+      weather,
+      farmSoilTexture: farmSoilTexture,
+      farmSoilSeries: farmSoilSeries,
+    );
     if (scored != null) matches.add(scored);
   }
   matches.sort((a, b) => b.percent.compareTo(a.percent));
   return matches;
 }
 
-/// Suitable subset (at/above [kSuitableMatchPercent]).
-List<CropMatch> suitableMatches(List<CropMatch> all) =>
-    all.where((m) => m.percent >= kSuitableMatchPercent).toList();
+/// Match cards for the Crops list, capped at [kMaxMatchCards].
+///
+/// Prefers crops at/above [kSuitableMatchPercent]. If none qualify, returns the
+/// best under-threshold scores so the farmer still has choices (not an empty list).
+List<CropMatch> suitableMatches(List<CropMatch> all) {
+  if (all.isEmpty) return const [];
+  final suitable =
+      all.where((m) => m.percent >= kSuitableMatchPercent).toList();
+  final pool = suitable.isNotEmpty ? suitable : all;
+  if (pool.length <= kMaxMatchCards) return pool;
+  return pool.take(kMaxMatchCards).toList();
+}
+
+/// Grounded per-crop facts for Groq `crops.match` (0 tokens to build).
+List<Map<String, dynamic>> buildCropMatchCatalogFacts({
+  required SoilReading reading,
+  required List<CropCatalogEntry> catalog,
+  WeatherSnapshot? weather,
+  SoilTexture? farmSoilTexture,
+  SoilSeries? farmSoilSeries,
+}) {
+  final out = <Map<String, dynamic>>[];
+  for (final crop in catalog) {
+    final detail = _detailOne(
+      reading,
+      crop,
+      weather,
+      farmSoilTexture: farmSoilTexture,
+      farmSoilSeries: farmSoilSeries,
+    );
+    if (detail == null) continue;
+    out.add(detail);
+  }
+  return out;
+}
+
+/// Shared weather slice stamped into the match AI payload + fingerprint.
+Map<String, dynamic> buildCropMatchWeatherFacts(WeatherSnapshot? weather) {
+  final air = _airTempC(weather);
+  final days = weather?.daily.take(3).toList() ?? const <DailyForecast>[];
+  var maxProb = 0.0;
+  var rainSum = 0.0;
+  for (final d in days) {
+    if (d.rainProbability > maxProb) maxProb = d.rainProbability;
+    rainSum += d.rainfallMm;
+  }
+  return {
+    'ph_wet_season_now': isPhWetSeason(),
+    'air_temp_c': air,
+    'rain_prob_max_3d': days.isEmpty ? null : maxProb,
+    'rain_sum_mm_3d': days.isEmpty ? null : rainSum,
+    'condition_today':
+        days.isEmpty ? null : days.first.conditionLabel,
+  };
+}
 
 CropMatch? _scoreOne(
   SoilReading reading,
   CropCatalogEntry crop,
-  WeatherSnapshot? weather,
-) {
+  WeatherSnapshot? weather, {
+  SoilTexture? farmSoilTexture,
+  SoilSeries? farmSoilSeries,
+}) {
+  final detail = _detailOne(
+    reading,
+    crop,
+    weather,
+    farmSoilTexture: farmSoilTexture,
+    farmSoilSeries: farmSoilSeries,
+  );
+  if (detail == null) return null;
+  return CropMatch(
+    crop: crop,
+    percent: detail['local_percent'] as int,
+    reason: detail['local_reason'] as String,
+  );
+}
+
+Map<String, dynamic>? _detailOne(
+  SoilReading reading,
+  CropCatalogEntry crop,
+  WeatherSnapshot? weather, {
+  SoilTexture? farmSoilTexture,
+  SoilSeries? farmSoilSeries,
+}) {
   final rainFit = rainFitFromSeason(crop.growingSeason);
+
+  // Curated series overrides texture for the physical soil pillar.
+  final series = farmSoilSeries;
+  final useSeries = series != null && series.countsForMatch;
+  final physicalLevel = useSeries
+      ? seriesFitForCrop(
+          cropName: crop.name,
+          farmSeries: series,
+        )
+      : textureFitForCrop(
+          cropName: crop.name,
+          farmTexture: farmSoilTexture,
+        );
+  final physicalOk = textureInRange(physicalLevel);
+  final physicalLabel = useSeries ? 'soil series' : 'soil texture';
+
   final checks = <({String label, bool? inRange})>[
     (
       label: 'moisture',
@@ -117,6 +226,10 @@ CropMatch? _scoreOne(
         crop.temperatureMaxC,
       ),
     ),
+    (
+      label: physicalLabel,
+      inRange: physicalOk,
+    ),
   ];
 
   final considered = checks.where((c) => c.inRange != null).toList();
@@ -134,12 +247,33 @@ CropMatch? _scoreOne(
 
   final weatherLabels = {'season', 'rain', 'air temperature'};
   final usedWeather = considered.any((c) => weatherLabels.contains(c.label));
+  final usedPhysical = physicalOk != null;
 
   final String reason;
   if (bad.isEmpty) {
-    reason = usedWeather
-        ? 'Soil and weather fit ${crop.name} on this snapshot.'
-        : '${ok.join(', ')} fit ${crop.name} on this snapshot.';
+    if (usedPhysical && useSeries) {
+      final note = seriesReasonFragment(
+        cropName: crop.name,
+        farmSeries: series,
+        level: physicalLevel,
+      );
+      reason = usedWeather
+          ? '$note; soil and weather fit on this snapshot.'
+          : '$note on this snapshot.';
+    } else if (usedPhysical && farmSoilTexture != null) {
+      final note = textureReasonFragment(
+        cropName: crop.name,
+        farmTexture: farmSoilTexture,
+        level: physicalLevel,
+      );
+      reason = usedWeather
+          ? '$note; soil and weather fit on this snapshot.'
+          : '$note on this snapshot.';
+    } else {
+      reason = usedWeather
+          ? 'Soil and weather fit ${crop.name} on this snapshot.'
+          : '${ok.join(', ')} fit ${crop.name} on this snapshot.';
+    }
   } else if (bad.length == considered.length) {
     reason =
         'This snapshot sits outside ${crop.name} ranges (${bad.join(', ')}).';
@@ -148,7 +282,56 @@ CropMatch? _scoreOne(
         '${ok.join(', ')} fit; ${bad.join(', ')} outside ${crop.name} range.';
   }
 
-  return CropMatch(crop: crop, percent: percent, reason: reason);
+  final bands = CropBandRanges.fromCrop(crop);
+  return {
+    'crop_id': crop.id,
+    'name': crop.name,
+    'growing_season': crop.growingSeason,
+    'rain_fit': rainFit.name,
+    'local_percent': percent,
+    'local_reason': reason,
+    'texture_fit': useSeries ? null : physicalLevel.name,
+    'series_fit': useSeries ? physicalLevel.name : null,
+    'farm_soil_texture': farmSoilTexture?.wire,
+    'farm_soil_series': farmSoilSeries?.wire,
+    'checks': {
+      for (final c in considered) c.label: c.inRange,
+    },
+    'bands': {
+      'moisture': classifyMoistureBand(
+        value: reading.moisturePercent,
+        crop: bands,
+      ),
+      'ph': classifyPhBand(value: reading.ph, crop: bands),
+      'temp': classifyTempBand(
+        value: reading.soilTemperatureC,
+        crop: bands,
+      ),
+      'ec': classifyEcBand(value: reading.ec, crop: bands),
+      'salinity': classifySalinityBand(
+        value: reading.salinity,
+        crop: bands,
+      ),
+    },
+    'ranges': {
+      'moisture_min': crop.moistureMin,
+      'moisture_max': crop.moistureMax,
+      'ph_min': crop.phMin,
+      'ph_max': crop.phMax,
+      'temperature_min_c': crop.temperatureMinC,
+      'temperature_max_c': crop.temperatureMaxC,
+      'ec_min': crop.ecMin,
+      'ec_max': crop.ecMax,
+      'salinity_min': crop.salinityMin,
+      'salinity_max': crop.salinityMax,
+      'nitrogen_min': crop.nitrogenMin,
+      'nitrogen_max': crop.nitrogenMax,
+      'phosphorus_min': crop.phosphorusMin,
+      'phosphorus_max': crop.phosphorusMax,
+      'potassium_min': crop.potassiumMin,
+      'potassium_max': crop.potassiumMax,
+    },
+  };
 }
 
 /// Wet / dry / any from catalog `growing_season` text.

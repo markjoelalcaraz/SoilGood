@@ -24,6 +24,35 @@ class AuthController extends ChangeNotifier {
     return _run(() => _repository.signIn(email: email, password: password));
   }
 
+  /// Asks Supabase to email a reset link. True when the request is accepted.
+  Future<bool> sendPasswordReset({required String email}) async {
+    final emailError = AppValidators.email(email);
+    if (emailError != null) {
+      errorMessage = emailError;
+      notifyListeners();
+      return false;
+    }
+    return _runVoid(() => _repository.sendPasswordReset(email: email));
+  }
+
+  /// Saves a new password on the recovery session. True when Supabase accepts it.
+  Future<bool> updatePassword({
+    required String password,
+    required String confirmPassword,
+  }) async {
+    final passwordError = AppValidators.signupPassword(password);
+    final confirmError = AppValidators.confirmPassword(
+      confirmPassword,
+      password,
+    );
+    if (passwordError != null || confirmError != null) {
+      errorMessage = passwordError ?? confirmError;
+      notifyListeners();
+      return false;
+    }
+    return _runVoid(() => _repository.updatePassword(password: password));
+  }
+
   /// Signs up and returns true only after Supabase confirms success.
   Future<bool> signUp({required String email, required String password}) async {
     final emailError = AppValidators.email(email);
@@ -34,6 +63,27 @@ class AuthController extends ChangeNotifier {
       return false;
     }
     return _run(() => _repository.signUp(email: email, password: password));
+  }
+
+  /// Same loading and error handling as [_run], for calls that return no user.
+  Future<bool> _runVoid(Future<void> Function() operation) async {
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+
+    try {
+      await operation();
+      return true;
+    } on AuthException catch (error) {
+      errorMessage = error.message;
+      return false;
+    } on Object catch (error) {
+      errorMessage = 'Authentication failed: $error';
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   /// Runs an auth request while keeping loading and error state consistent.

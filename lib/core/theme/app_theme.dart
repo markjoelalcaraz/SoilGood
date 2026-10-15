@@ -38,6 +38,38 @@ abstract final class AppTheme {
             bodyColor: AppColors.textPrimary,
             displayColor: AppColors.textPrimary,
           ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.buttonGreen,
+          foregroundColor: AppColors.textPrimary,
+          disabledBackgroundColor: AppColors.buttonGreen.withValues(alpha: 0.55),
+          minimumSize: const Size(64, 52),
+          shape: const StadiumBorder(),
+          textStyle: GoogleFonts.nunitoSans(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+          ),
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.surface,
+        indicatorColor: AppColors.primarySoft,
+        height: 72,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return GoogleFonts.nunitoSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: selected ? AppColors.navIcon : AppColors.textSecondary,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? AppColors.navIcon : AppColors.textSecondary,
+          );
+        }),
+      ),
       scrollbarTheme: ScrollbarThemeData(
         thickness: const WidgetStatePropertyAll(4),
         radius: const Radius.circular(8),

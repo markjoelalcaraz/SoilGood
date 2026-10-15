@@ -1,7 +1,7 @@
 /// Period and metric dropdowns for the Analytics tab (shell content area).
 ///
-/// Rectangular fields (not chips). Period presets + calendar sheets for a
-/// specific ISO week or month. Metric includes All sensors overlay.
+/// Rectangular fields (not chips). Period presets + calendar sheets. Metric
+/// includes **All sensors** (scaled overlay / intra-day) plus each 8-in-1 series.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,7 +12,8 @@ import '../data/daily_soil_bucket.dart';
 import '../logic/analytics_period.dart';
 import '../logic/manila_time.dart';
 
-const _fieldRadius = BorderRadius.all(Radius.circular(8));
+const _fieldRadius = BorderRadius.all(Radius.circular(14));
+const _menuRadius = BorderRadius.all(Radius.circular(16));
 
 /// Two filter fields: date window and which series to chart.
 class AnalyticsFilterBar extends StatelessWidget {
@@ -167,9 +168,14 @@ class _MenuField extends StatelessWidget {
         MenuAnchor(
           style: MenuStyle(
             backgroundColor: const WidgetStatePropertyAll(AppColors.surface),
+            elevation: const WidgetStatePropertyAll(6),
+            shadowColor: const WidgetStatePropertyAll(Color(0x332E3230)),
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(vertical: 6),
+            ),
             shape: WidgetStatePropertyAll(
               RoundedRectangleBorder(
-                borderRadius: _fieldRadius,
+                borderRadius: _menuRadius,
                 side: const BorderSide(color: AppColors.outline),
               ),
             ),
@@ -192,7 +198,9 @@ class _MenuField extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     borderRadius: _fieldRadius,
-                    border: Border.all(color: AppColors.outline),
+                    border: Border.all(
+                      color: AppColors.outline.withValues(alpha: 0.45),
+                    ),
                   ),
                   child: Row(
                     children: [

@@ -1,0 +1,12 @@
+flowchart TD
+  A[App shell opens] --> B[NotificationController.start]
+  B --> C[Latest soil + optional rain probability]
+  C --> D[Evaluate bands — 0 Groq]
+  D --> E[Insert farm_notifications if new for Manila day]
+  E --> F[Phase change check once per phase]
+  F --> G[Bell unread badge + Home/Crops red dots]
+
+  G --> H{Farmer action}
+  H -->|Tap bell| I[NotificationsPage]
+  H -->|Tap Home/Crops tab| J[markTabRead for that tab's types]
+  I --> K[Unread first → mark read / Mark all]

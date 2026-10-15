@@ -116,11 +116,33 @@ class AnalyticsPeriod {
     return soFar ? '$name (so far)' : name;
   }
 
-  /// Every Manila calendar day in the window (chart x-axis).
+  /// Every Manila calendar day in the **data** window ([start]..[end]).
+  ///
+  /// Used for RPC fetch, weather, irrigation logs, and period AI — not the
+  /// chart x-axis when a week skeleton pads out to Sunday.
   List<DateTime> get days {
     return List<DateTime>.generate(
       dayCount,
       (i) => DateTime(start.year, start.month, start.day).add(Duration(days: i)),
+    );
+  }
+
+  /// True when the chart should show a full Mon–Sun week (empty future days).
+  bool get usesWeekChartSkeleton => switch (kind) {
+    AnalyticsPeriodKind.thisWeek ||
+    AnalyticsPeriodKind.lastWeek ||
+    AnalyticsPeriodKind.customWeek => true,
+    _ => false,
+  };
+
+  /// Chart x-axis days. Week presets/picks always span Mon→Sun so Monday
+  /// (This week) is not a one-point pile in the middle of the card.
+  List<DateTime> get chartDays {
+    if (!usesWeekChartSkeleton) return days;
+    final mon = DateTime(start.year, start.month, start.day);
+    return List<DateTime>.generate(
+      7,
+      (i) => mon.add(Duration(days: i)),
     );
   }
 }

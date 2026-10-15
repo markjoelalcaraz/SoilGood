@@ -1,0 +1,14 @@
+flowchart TD
+  APP[Flutter page] --> LOCAL[Classify bands via local insights.json]
+  LOCAL --> CACHE{Saved assessment still valid?}
+  CACHE -->|Yes| SHOW[Show saved tips — 0 Groq tokens]
+  CACHE -->|No| INV[functions.invoke soilgood-insights + user JWT]
+  INV --> EF[Edge Function]
+  EF --> AUTH{getUser OK?}
+  AUTH -->|No| E401[401]
+  AUTH -->|Yes| DATA{Live soil / history present?}
+  DATA -->|No| NR[400 no_reading — skip Groq]
+  DATA -->|Yes| SLICE[Attach page slice of insights.json]
+  SLICE --> GROQ[Groq openai/gpt-oss-120b]
+  GROQ --> SAVE[(ai_assessments + ai_recommendations)]
+  SAVE --> SHOW

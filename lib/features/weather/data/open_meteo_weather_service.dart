@@ -42,7 +42,7 @@ class OpenMeteoWeatherService {
           'precipitation_probability_max',
         ].join(','),
         'timezone': 'auto',
-        'forecast_days': '4',
+        'forecast_days': '7',
         'wind_speed_unit': 'kmh',
       },
     );

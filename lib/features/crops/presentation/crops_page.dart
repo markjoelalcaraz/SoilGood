@@ -1,8 +1,9 @@
-/// Crops feature page shown inside the app shell content area (third bottom-nav tab).
+/// Pushed crop list used when the Farm tab has no active planting.
 ///
-/// Two modes: no planting → 8-in-1 chips + weather + suitable catalog matches
-/// for the latest soil snapshot and forecast; active planting → in-tab crop
-/// plan (phases, days, Groq care). Not a pushed route — the bottom nav stays.
+/// Shows the latest soil line, weather, and ranked catalog matches. After the
+/// farmer confirms a crop, this page closes and the plan appears under that
+/// area on Farm. If a planting is already active when this page opens, the
+/// same plan panel is shown here and Change crop returns to the list.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,13 +11,17 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/ai/groq_chat_client.dart';
 import '../../../core/ai/insights_config.dart';
-import '../../../core/ai/saved_assessment.dart';
 import '../../../core/ai/saved_assessment_repository.dart';
+import '../../../core/soil/farm_soil_display_row.dart';
+import '../../../core/soil/farm_soil_label.dart';
+import '../../../core/soil/soil_series.dart';
+import '../../../core/soil/soil_texture.dart';
+import '../../../core/live/farm_live_hub.dart';
+import '../../../core/live/live_page.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/data/refresh_timeout.dart';
 import '../../../shared/widgets/app_refresh_scroll.dart';
 import '../../../shared/widgets/ui_primitives.dart';
-import '../../analytics/logic/manila_time.dart';
 import '../../home/data/soil_reading.dart';
 import '../../home/data/soil_readings_repository.dart';
 import '../../shell/app_shell.dart';
@@ -27,12 +32,11 @@ import '../data/crop_catalog.dart';
 import '../data/crops_repository.dart';
 import '../data/planting.dart';
 import '../logic/crop_match.dart';
-import '../logic/crop_timeline.dart';
-import '../logic/crops_care_ai_client.dart';
-import '../logic/crops_care_regen.dart';
-import 'crop_plan_page.dart';
+import '../logic/crops_match_ai_client.dart';
+import '../logic/crops_match_regen.dart';
+import 'crop_plan_panel.dart';
 
-/// Crops tab: catalog match or the selected crop’s plan.
+/// Crop list pushed from the Farm tab, or the plan when a planting is already active.
 class CropsPage extends StatefulWidget {
   const CropsPage({super.key});
 
@@ -40,18 +44,20 @@ class CropsPage extends StatefulWidget {
   State<CropsPage> createState() => _CropsPageState();
 }
 
-class _CropsPageState extends State<CropsPage> {
+class _CropsPageState extends State<CropsPage> with LivePage {
   final _cropsRepo = CropsRepository();
   final _soilRepo = SoilReadingsRepository();
   final _farmRepo = FarmLocationRepository();
   final _weatherService = OpenMeteoWeatherService();
   final _aiRepo = SavedAssessmentRepository();
-  final _groq = CropsCareAiClient();
+  final _matchAi = CropsMatchAiClient();
 
   bool _started = false;
   bool _loadDone = false;
 
   String? _farmId;
+  SoilTexture? _farmSoilTexture;
+  SoilSeries? _farmSoilSeries;
   Planting? _planting;
   SoilReading? _reading;
   List<CropCatalogEntry> _catalog = [];
@@ -60,13 +66,33 @@ class _CropsPageState extends State<CropsPage> {
 
   Object? _loadError;
   Object? _actionError;
+  bool _selecting = false;
 
-  SavedAssessment? _assessment;
-  Object? _aiError;
-  bool _aiLoading = false;
+  @override
+  Set<LiveSource> get liveSources => const {
+    LiveSource.plantings,
+    LiveSource.soil,
+    LiveSource.farms,
+    LiveSource.assessments,
+    LiveSource.crops,
+  };
 
-  /// IndexedStack builds this tab offstage. Wait until visible so Groq is not
-  /// billed on every app open.
+  /// A match input changed. Skip while a plant confirm is in flight.
+  @override
+  Future<void> onLive(Set<LiveSource> changed) async {
+    if (_selecting) return;
+    await _reloadAll();
+  }
+
+  /// Bumped on each reload so an open plan refetches care and water.
+  int _planEpoch = 0;
+
+  /// AI catalog matches for list mode; null means use local fallback scores.
+  List<CropMatch>? _aiMatches;
+  Object? _matchAiError;
+  bool _matchAiLoading = false;
+
+  /// Loads once this pushed page is on screen so match AI is not billed early.
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -76,10 +102,12 @@ class _CropsPageState extends State<CropsPage> {
     }
   }
 
-  /// Refetches farm, planting, soil, catalog, and weather; then care AI if planted.
+  /// Refetches farm, planting, soil, catalog, and weather, then match AI.
   Future<void> _reloadAll() async {
     Object? err;
     String? farmId;
+    SoilTexture? farmSoilTexture;
+    SoilSeries? farmSoilSeries;
     Planting? planting;
     SoilReading? reading;
     List<CropCatalogEntry> catalog = [];
@@ -91,6 +119,12 @@ class _CropsPageState extends State<CropsPage> {
       if (id == null) {
         throw StateError('No farm found. Finish onboarding first.');
       }
+      farmSoilTexture = await withRefreshTimeout(
+        _farmRepo.getPrimaryFarmSoilTexture(),
+      );
+      farmSoilSeries = await withRefreshTimeout(
+        _farmRepo.getPrimaryFarmSoilSeries(),
+      );
       await Future.wait([
         () async {
           planting = await withRefreshTimeout(
@@ -122,10 +156,13 @@ class _CropsPageState extends State<CropsPage> {
       _loadDone = true;
       if (err == null) {
         _farmId = farmId;
+        _farmSoilTexture = farmSoilTexture;
+        _farmSoilSeries = farmSoilSeries;
         _planting = planting;
         _reading = reading;
         _catalog = catalog;
         _loadError = null;
+        _planEpoch++;
         if (weatherErr == null) {
           _weather = weather;
           _weatherError = null;
@@ -137,15 +174,93 @@ class _CropsPageState extends State<CropsPage> {
       }
     });
 
-    if (err == null && planting != null && reading != null) {
-      await _loadCareAi();
-    } else if (mounted) {
+    if (err == null && planting == null && reading != null) {
+      await _loadMatchAi();
+    }
+  }
+
+  /// Loads saved catalog match AI or regenerates when the story moved.
+  Future<void> _loadMatchAi() async {
+    final farmId = _farmId;
+    final reading = _reading;
+    if (farmId == null || reading == null) return;
+    if (_catalog.isEmpty) return;
+
+    setState(() => _matchAiLoading = true);
+
+    try {
+      final insights = await InsightsConfig.load();
+      final fingerprint = buildCropsMatchStoryFingerprint(
+        reading: reading,
+        weather: _weather,
+        farmSoilTexture: _farmSoilTexture,
+        farmSoilSeries: _farmSoilSeries,
+      );
+      final saved = await withRefreshTimeout(
+        _aiRepo.fetchLatest(farmId: farmId, kind: 'crops_match'),
+      );
+
+      if (!shouldRegenCropsMatchAi(
+        saved: saved,
+        soilReadingId: reading.id,
+        promptVersion: insights.promptVersion,
+        weatherFingerprint: fingerprint,
+      )) {
+        if (!mounted) return;
+        setState(() {
+          _aiMatches = cropMatchesFromAssessment(
+            assessment: saved!,
+            catalog: _catalog,
+          );
+          _matchAiError = null;
+          _matchAiLoading = false;
+        });
+        return;
+      }
+
+      final generated = await _matchAi.generate(
+        insights: insights,
+        reading: reading,
+        catalog: _catalog,
+        weather: _weather,
+        farmSoilTexture: _farmSoilTexture,
+        farmSoilSeries: _farmSoilSeries,
+      );
+      final overview = encodeCropsMatchOverview(
+        fingerprint: fingerprint,
+        overview: generated.overview,
+      );
+      final validUntil = DateTime.now().add(
+        Duration(hours: insights.cropsMatchCacheHours),
+      );
+      final savedNew = await withRefreshTimeout(
+        _aiRepo.save(
+          farmId: farmId,
+          kind: 'crops_match',
+          soilReadingId: reading.id,
+          overview: overview,
+          soilHealthScore: null,
+          modelName: kGroqModel,
+          promptVersion: insights.promptVersion,
+          validUntil: validUntil,
+          recommendations: generated.recommendations,
+        ),
+      );
+      if (!mounted) return;
       setState(() {
-        _assessment = planting == null ? null : _assessment;
-        if (planting == null) {
-          _aiError = null;
-          _aiLoading = false;
-        }
+        _aiMatches = cropMatchesFromAssessment(
+          assessment: savedNew,
+          catalog: _catalog,
+        );
+        _matchAiError = null;
+        _matchAiLoading = false;
+      });
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() {
+        // Keep last AI matches if any; null means _matchList uses local scores.
+        _matchAiError = e;
+        _matchAiLoading = false;
       });
     }
   }
@@ -159,98 +274,11 @@ class _CropsPageState extends State<CropsPage> {
     );
   }
 
-  Future<void> _loadCareAi() async {
-    final farmId = _farmId;
-    final planting = _planting;
-    final reading = _reading;
-    if (farmId == null || planting == null || reading == null) return;
-    if (planting.id == 'pending') return;
-
-    final timeline = timelineFor(planting);
-    if (timeline == null) {
-      if (!mounted) return;
-      setState(() {
-        _aiError = StateError(
-          'Crop catalog is missing phases. Run supabase_crops_home_ai.sql.',
-        );
-        _aiLoading = false;
-      });
-      return;
-    }
-
-    setState(() => _aiLoading = true);
-
-    try {
-      final insights = await InsightsConfig.load();
-      final saved = await withRefreshTimeout(
-        _aiRepo.fetchLatest(
-          farmId: farmId,
-          kind: 'crops',
-          plantingId: planting.id,
-        ),
-      );
-
-      if (!shouldRegenCropsCareAi(
-        saved: saved,
-        plantingId: planting.id,
-        soilReadingId: reading.id,
-        promptVersion: insights.promptVersion,
-        timeline: timeline,
-      )) {
-        if (!mounted) return;
-        setState(() {
-          _assessment = saved;
-          _aiError = null;
-          _aiLoading = false;
-        });
-        return;
-      }
-
-      final generated = await _groq.generate(
-        insights: insights,
-        reading: reading,
-        planting: planting,
-        timeline: timeline,
-        weather: _weather,
-      );
-      final validUntil = DateTime.now().add(
-        Duration(hours: insights.cropsCacheHours),
-      );
-      final savedNew = await withRefreshTimeout(
-        _aiRepo.save(
-          farmId: farmId,
-          kind: 'crops',
-          plantingId: planting.id,
-          soilReadingId: reading.id,
-          overview: generated.overview,
-          soilHealthScore: generated.soilHealthScore,
-          modelName: kGroqModel,
-          promptVersion: insights.promptVersion,
-          validUntil: validUntil,
-          recommendations: generated.recommendations,
-        ),
-      );
-      if (!mounted) return;
-      setState(() {
-        _assessment = savedNew;
-        _aiError = null;
-        _aiLoading = false;
-      });
-    } on Object catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _aiError = e;
-        _aiLoading = false;
-      });
-    }
-  }
-
-  /// Confirm, then optimistic plan + insert. Blocks while a select is pending.
+  /// Confirm, plant the crop, then close so Farm shows the plan under the area.
   Future<void> _selectCrop(CropCatalogEntry crop) async {
     final farmId = _farmId;
     if (farmId == null) return;
-    // Already planted or mid-insert — avoid double-tap duplicate actives.
-    if (_planting != null) return;
+    if (_planting != null || _selecting) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -271,91 +299,34 @@ class _CropsPageState extends State<CropsPage> {
         ],
       ),
     );
-    if (confirmed != true) return;
-    if (!mounted) return;
-    // Second guard after the dialog (another tap may have started meanwhile).
-    if (_planting != null) return;
+    if (confirmed != true || !mounted) return;
+    if (_planting != null || _selecting) return;
 
-    final today = manilaCalendarDate(DateTime.now());
-    final days = crop.daysToMaturity;
-    final optimistic = Planting(
-      id: 'pending',
-      farmId: farmId,
-      cropId: crop.id,
-      status: 'active',
-      plantedAt: today,
-      expectedHarvestAt: days == null ? null : today.add(Duration(days: days)),
-      crop: crop,
-    );
     setState(() {
-      _planting = optimistic;
+      _selecting = true;
       _actionError = null;
-      _assessment = null;
     });
 
     try {
-      final saved = await _cropsRepo.selectCrop(farmId: farmId, crop: crop);
+      await _cropsRepo.selectCrop(farmId: farmId, crop: crop);
       if (!mounted) return;
-      setState(() => _planting = saved);
-      try {
-        final weather = await _fetchWeather();
-        if (mounted) setState(() => _weather = weather);
-      } on Object {
-        // Care AI still runs with missing rain facts.
-      }
-      await _loadCareAi();
+      Navigator.of(context).pop(true);
     } on Object catch (e) {
       if (!mounted) return;
       setState(() {
-        _planting = null;
+        _selecting = false;
         _actionError = e;
       });
     }
   }
 
-  Future<void> _changeCrop() async {
-    final planting = _planting;
-    if (planting == null || planting.id == 'pending') return;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Change crop?'),
-        content: const Text(
-          'This ends the current plan and shows suitable crops again.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Change crop'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    final previous = planting;
-    final previousAi = _assessment;
+  /// Change crop ended the planting. Show suitable crops on this page again.
+  Future<void> _onPlantingEnded() async {
     setState(() {
       _planting = null;
-      _assessment = null;
       _actionError = null;
     });
-
-    try {
-      await _cropsRepo.endPlanting(previous.id);
-    } on Object catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _planting = previous;
-        _assessment = previousAi;
-        _actionError = e;
-      });
-    }
+    await _loadMatchAi();
   }
 
   @override
@@ -398,16 +369,21 @@ class _CropsPageState extends State<CropsPage> {
           if (waitingFirst)
             const _CropsFirstLoadSkeleton()
           else if (planting != null)
-            CropPlanView(
+            CropPlanPanel(
               planting: planting,
-              timeline: timelineFor(planting),
-              onChangeCrop: _changeCrop,
-              assessment: _assessment,
-              aiError: _aiError,
-              aiLoading: _aiLoading,
-              actionError: _actionError,
+              refreshGeneration: _planEpoch,
+              onPlantingEnded: _onPlantingEnded,
             )
           else ...[
+            if (_selecting) ...[
+              const SoftCard(
+                child: Text(
+                  'Planting this crop…',
+                  style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (_actionError != null) ...[
               SoftCard(
                 color: AppColors.errorContainer,
@@ -418,6 +394,17 @@ class _CropsPageState extends State<CropsPage> {
               ),
               const SizedBox(height: 12),
             ],
+            // Display-only: texture · series used for match (edit on Profile).
+            FarmSoilDisplayRow(
+              texture: _farmSoilTexture,
+              series: _farmSoilSeries,
+            ),
+            if (farmSoilDisplayLabel(
+                  texture: _farmSoilTexture,
+                  series: _farmSoilSeries,
+                ) !=
+                null)
+              const SizedBox(height: 12),
             _SoilSnapshotCard(reading: reading),
             const SizedBox(height: 12),
             _WeatherSnapshotCard(
@@ -427,6 +414,24 @@ class _CropsPageState extends State<CropsPage> {
             const SizedBox(height: 20),
             const SectionHeader(title: 'Suitable crops'),
             const SizedBox(height: 12),
+            if (_matchAiError != null) ...[
+              SoftCard(
+                color: AppColors.errorContainer,
+                child: Text(
+                  'AI match unavailable — showing local scores.\n$_matchAiError',
+                  style: const TextStyle(color: Color(0xFF690005), height: 1.5),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ] else if (_matchAiLoading && _aiMatches == null) ...[
+              const SoftCard(
+                child: Text(
+                  'Scoring crops for this soil and weather…',
+                  style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             ..._matchList(reading),
           ],
         ],
@@ -456,18 +461,27 @@ class _CropsPageState extends State<CropsPage> {
       ];
     }
 
-    final suitable = suitableMatches(
-      scoreCropMatches(
-        reading: reading,
-        catalog: _catalog,
-        weather: _weather,
-      ),
-    );
+    // Prefer AI scores when loaded; fall back to local only when AI never loaded.
+    final suitable = _aiMatches ??
+        suitableMatches(
+          scoreCropMatches(
+            reading: reading,
+            catalog: _catalog,
+            weather: _weather,
+            farmSoilTexture: _farmSoilTexture,
+            farmSoilSeries: _farmSoilSeries,
+          ),
+        );
+
+    if (_matchAiLoading && _aiMatches == null && _matchAiError == null) {
+      return const [];
+    }
+
     if (suitable.isEmpty) {
       return const [
         SoftCard(
           child: Text(
-            'No catalog crop fits this soil and weather at 50% or better. Improve soil first, or pull after a new reading.',
+            'No catalog crops scored for this soil and weather. Pull after a new reading, or check the crop catalog.',
             style: TextStyle(color: AppColors.textSecondary, height: 1.5),
           ),
         ),

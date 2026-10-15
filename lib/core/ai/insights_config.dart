@@ -18,6 +18,7 @@ class InsightsConfig {
     required this.raw,
     required this.homeCacheHours,
     required this.cropsCacheHours,
+    required this.cropsMatchCacheHours,
     required this.skipIfRainProbPctGte,
   });
 
@@ -25,6 +26,7 @@ class InsightsConfig {
   final Map<String, dynamic> raw;
   final int homeCacheHours;
   final int cropsCacheHours;
+  final int cropsMatchCacheHours;
   final double skipIfRainProbPctGte;
 
   static InsightsConfig? _cached;
@@ -43,6 +45,7 @@ class InsightsConfig {
       raw: json,
       homeCacheHours: (cache['home'] as num?)?.toInt() ?? 12,
       cropsCacheHours: (cache['crops'] as num?)?.toInt() ?? 12,
+      cropsMatchCacheHours: (cache['crops_match'] as num?)?.toInt() ?? 12,
       skipIfRainProbPctGte:
           (irrigation['skip_if_rain_prob_pct_gte'] as num?)?.toDouble() ?? 60,
     );

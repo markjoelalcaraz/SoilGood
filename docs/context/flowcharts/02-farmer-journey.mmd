@@ -1,0 +1,21 @@
+flowchart TD
+  START([Farmer opens SoilGood]) --> AUTH{Session?}
+  AUTH -->|No| LOGIN[Login / Signup]
+  LOGIN --> ONB{Onboarding complete?}
+  AUTH -->|Yes| ONB
+  ONB -->|Profile missing| P1[Save profiles]
+  P1 --> P2
+  ONB -->|Farm missing| P2[GPS + map pin → farms]
+  P2 --> P3
+  ONB -->|Device missing| P3[Type claim_code]
+  P3 -->|Optional skip| SHELL
+  P3 -->|Valid| CLAIM[RPC claim_device]
+  CLAIM --> SHELL
+  ONB -->|All done| SHELL[App shell IndexedStack]
+
+  SHELL --> HOME[Home — now]
+  SHELL --> AN[Analytics — over time]
+  SHELL --> CR[Crops — match + plan]
+  SHELL --> PR[Profile]
+  SHELL --> BELL[Bell → Notifications inbox]
+  SHELL --> ENG[Notification engine while shell open]

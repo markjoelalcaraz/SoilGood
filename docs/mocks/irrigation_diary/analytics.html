@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Analytics mock — SoilGood actual UI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,700;1,7..72,700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@24,400,0..1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body style="background:var(--surface-muted)">
+  <p class="back-link"><a href="index.html">← All mocks</a> · Analytics (actual + proposed diary patterns)</p>
+  <div class="phone solo">
+    <header class="topbar">
+      <span class="material-symbols-outlined" style="color:var(--primary)">insights</span>
+      <h1 class="title">Analytics</h1>
+      <button class="icon-btn" type="button"><span class="material-symbols-outlined">notifications</span></button>
+    </header>
+    <div class="content">
+      <h2 class="page-title">Soil over time</h2>
+      <p class="muted" style="margin:4px 0 0;font-size:14px">
+        History, averages, and what to do next for soil and crops — not today’s live reading.
+      </p>
+      <div class="filter-bar stack-16">
+        <span class="filter-pill on">This week ▾</span>
+        <span class="filter-pill">Moisture ▾</span>
+      </div>
+
+      <div class="soft-card surface stack-16">
+        <strong style="font-size:14px">Moisture trend</strong>
+        <p class="tiny" style="margin:4px 0 0">Tap a day for that day’s readings</p>
+        <div class="bars">
+          <div class="bar irrigated" style="height:42%" data-d="S"></div>
+          <div class="bar irrigated" style="height:35%" data-d="M"></div>
+          <div class="bar" style="height:48%" data-d="T"></div>
+          <div class="bar" style="height:70%" data-d="W"></div>
+          <div class="bar" style="height:62%" data-d="T"></div>
+          <div class="bar" style="height:55%" data-d="F"></div>
+          <div class="bar" style="height:50%" data-d="S"></div>
+        </div>
+        <p class="tiny">Dark bars = logged irrigation days (proposed overlay on existing chart)</p>
+      </div>
+
+      <div class="section-header stack-16">
+        <span class="material-symbols-outlined">cloud</span>
+        <h2>Weather this window</h2>
+      </div>
+      <div class="soft-card stack-12">
+        <div class="stat-grid">
+          <div><div class="stat"><div class="n" style="font-size:22px">18</div><div class="l">mm total rain</div></div></div>
+          <div><div class="stat"><div class="n" style="font-size:22px">2</div><div class="l">Rainy days</div></div></div>
+        </div>
+      </div>
+
+      <div class="proposed-block stack-16">
+        <span class="proposed-label">Proposed</span>
+        <div class="section-header"><h2>Irrigation this week</h2></div>
+        <div class="stat-grid stack-12">
+          <div class="soft-card surface stat"><div class="n">2</div><div class="l">Times logged</div></div>
+          <div class="soft-card surface stat"><div class="n">1</div><div class="l">Skipped (rain)</div></div>
+        </div>
+        <div class="section-header stack-12" style="margin-bottom:8px"><h2 style="font-size:18px">Diary history</h2></div>
+        <div class="timeline">
+          <div class="event">
+            <div><div class="t">Mon</div><div class="d">7:20</div></div>
+            <div><strong>Irrigation</strong><div class="d">From Home · ahead of plan</div></div>
+          </div>
+          <div class="event">
+            <div><div class="t">Sun</div><div class="d">6:40</div></div>
+            <div><strong>Irrigation</strong><div class="d">From Crops · plan slot</div></div>
+          </div>
+          <div class="event">
+            <div><div class="t">Aug 26</div><div class="d">abono</div></div>
+            <div><strong>Fertilizer</strong><div class="d">1 sack 14-14-14</div></div>
+          </div>
+        </div>
+        <p class="tiny stack-8">Read-only. Logging stays on Home / Crops.</p>
+      </div>
+
+      <div class="section-header stack-16">
+        <span class="material-symbols-outlined">psychology</span>
+        <h2>Advice for this window</h2>
+      </div>
+      <div class="soft-card stack-12">
+        <p class="body-14" style="margin:0">
+          You watered early Mon because soil dried faster than the weekly plan.
+          After Wed rain, moisture held longer — good for flowering tomato.
+        </p>
+      </div>
+      <div class="soft-card stack-10">
+        <div class="tip-row">
+          <div class="tip-icon"><span class="material-symbols-outlined">water_drop</span></div>
+          <div>
+            <div class="slot-label">Irrigation pattern</div>
+            <p class="tip-title" style="font-size:16px">Keep morning slots; skip after ≥5 mm rain</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="home.html"><div class="ico-wrap"><span class="material-symbols-outlined">home</span></div>Home</a>
+      <div class="item active"><div class="ico-wrap"><span class="material-symbols-outlined">insights</span></div>Analytics</div>
+      <a href="crops.html"><div class="ico-wrap"><span class="material-symbols-outlined">eco</span></div>Crops</a>
+      <div class="item"><div class="ico-wrap"><span class="material-symbols-outlined">person</span></div>Profile</div>
+    </nav>
+  </div>
+</body>
+</html>
