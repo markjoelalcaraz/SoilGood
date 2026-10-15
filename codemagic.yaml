@@ -1,12 +1,11 @@
-# SoilGood iOS build for Sideloadly.
-# Codemagic produces a signed .ipa; download it from Artifacts and install with Sideloadly.
+# SoilGood iOS build for Sideloadly with a free Apple ID.
+# Codemagic builds an unsigned .ipa. No Apple certificate or provisioning profile.
+# Download the .ipa from Artifacts, then let Sideloadly sign and install it.
+# Free signing lasts about 7 days; sideload the same .ipa again after that.
 #
 # Before the first build, in the Codemagic UI:
 # 1. Connect this Git repo and choose "codemagic.yaml" as the configuration.
-# 2. Code signing identities: upload an Apple Distribution (or Development) certificate
-#    and an Ad Hoc provisioning profile for bundle id com.soilsense.soilSense.
-#    The iPhone UDID must be on that profile.
-# 3. Environment variable group "soilgood_secrets":
+# 2. Environment variable group "soilgood_secrets":
 #      SUPABASE_URL
 #      SUPABASE_ANON_KEY
 #    Use the anon key only. Never put the service_role key here.
@@ -17,9 +16,6 @@ workflows:
     max_build_duration: 120
     instance_type: mac_mini_m2
     environment:
-      ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: com.soilsense.soilSense
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -40,15 +36,24 @@ workflows:
         script: flutter pub get
       - name: Generate iOS project files
         script: flutter build ios --config-only --release
-      - name: Set up code signing
-        script: xcode-project use-profiles
       - name: Install CocoaPods
         script: |
           find . -name "Podfile" -execdir pod install \;
-      - name: Build IPA
+      - name: Build unsigned iOS app
+        script: flutter build ios --release --no-codesign
+      - name: Pack unsigned IPA for Sideloadly
         script: |
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist
+          APP_PATH="$CM_BUILD_DIR/build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Runner.app not found at $APP_PATH"
+            exit 1
+          fi
+          IPA_DIR="$CM_BUILD_DIR/build/ios/ipa"
+          rm -rf "$IPA_DIR"
+          mkdir -p "$IPA_DIR/Payload"
+          cp -R "$APP_PATH" "$IPA_DIR/Payload/"
+          cd "$IPA_DIR"
+          zip -r -y SoilGood-unsigned.ipa Payload
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
