@@ -5,6 +5,7 @@
 /// `place_sensor_on_plot`. Not a widget.
 library;
 
+import '../../../core/soil/device_texture_resolver.dart';
 import '../../../core/supabase/supabase_bootstrap.dart';
 import '../../home/data/soil_reading.dart';
 import '../../onboarding/data/onboarding_repository.dart';
@@ -17,6 +18,9 @@ class PlotSensorsRepository {
     : _onboarding = onboarding ?? OnboardingRepository();
 
   final OnboardingRepository _onboarding;
+
+  /// Turns probe moisture into wetness for each kit's plot / farm texture.
+  final _textures = DeviceTextureResolver();
 
   /// Every claimed kit on [farmId], oldest claim first, with its latest reading.
   Future<List<FarmSensor>> listForFarm(String farmId) async {
@@ -93,10 +97,22 @@ class PlotSensorsRepository {
     required String claimCode,
     required String plantingId,
   }) async {
-    await _onboarding.claimDevice(claimCode: claimCode);
+    final id = await claimToFarm(claimCode);
+    await placeOnPlot(deviceId: id, plantingId: plantingId);
+  }
+
+  /// Claims a new kit onto the farm without a plot yet. Returns the device id.
+  ///
+  /// Add a crop uses this so the kit can start reporting before a crop is chosen.
+  Future<String> claimToFarm(String claimCode) async {
     final code = normalizeClaimCode(claimCode);
     if (code == null) {
       throw StateError(kEmptyClaimCodeMessage);
+    }
+    try {
+      await _onboarding.claimDevice(claimCode: code);
+    } on Object catch (e) {
+      throw StateError(friendlyClaimError(e));
     }
     final row = await supabase
         .from('devices')
@@ -107,7 +123,47 @@ class PlotSensorsRepository {
     if (id == null) {
       throw StateError('Claim code not found. Check the code on your box');
     }
-    await placeOnPlot(deviceId: id, plantingId: plantingId);
+    return id;
+  }
+
+  /// Newest reading from [deviceId] at or after [since], or null.
+  Future<SoilReading?> fetchReadingSince({
+    required String deviceId,
+    required DateTime since,
+  }) async {
+    final row = await supabase
+        .from('soil_readings')
+        .select()
+        .eq('device_id', deviceId)
+        .gte('recorded_at', since.toUtc().toIso8601String())
+        .order('recorded_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    if (row == null) return null;
+    return _textures.normalize(
+      SoilReading.fromJson(Map<String, dynamic>.from(row)),
+    );
+  }
+
+  /// Live: emits the newest reading from [deviceId] once it is at/after [since].
+  Stream<SoilReading?> watchReadingSince({
+    required String deviceId,
+    required DateTime since,
+  }) {
+    return supabase
+        .from('soil_readings')
+        .stream(primaryKey: ['id'])
+        .eq('device_id', deviceId)
+        .order('recorded_at', ascending: false)
+        .limit(1)
+        .asyncMap((rows) async {
+          if (rows.isEmpty) return null;
+          final reading = SoilReading.fromJson(
+            Map<String, dynamic>.from(rows.first),
+          );
+          if (reading.recordedAt.isBefore(since)) return null;
+          return _textures.normalize(reading);
+        });
   }
 
   /// Moves an already-claimed kit onto the current crop.
@@ -141,6 +197,9 @@ class PlotSensorsRepository {
       if (deviceId == null || byDevice.containsKey(deviceId)) continue;
       byDevice[deviceId] = SoilReading.fromJson(json);
     }
-    return byDevice;
+    // Sensor list is reloaded after placements, so plot textures must be fresh.
+    _textures.invalidate();
+    final normalized = await _textures.normalizeAll(byDevice.values.toList());
+    return {for (final r in normalized) r.deviceId!: r};
   }
 }

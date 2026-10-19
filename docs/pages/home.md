@@ -12,6 +12,10 @@ Show the latest soil condition, live 8-in-1 values, a short forecast, and AI car
 
 ## User flow
 - Open Home tab from app shell.
+- **Crop picker:** tap the crop name under the greeting. The sheet "Your crops" lists **only crops planted from the Crops list** (picture, Day X of Y, sensor status) plus **Add a crop**. No empty farms are listed.
+- Picking a crop switches **every Home stat** to that crop's sensors: moisture card, alerts, AI tips (`ai_assessments.planting_id`), quick stats, and the 8-in-1 grid. The choice is shared with Farm and Profile → Sensors (`SelectedCrop`).
+- **Crop with no sensor:** no stats and no tips. Only a card with **Add sensor** (and "Place on {crop}" for kits not on any plot). Forecast still shows.
+- Nothing planted at all: Home falls back to the newest reading on the farm.
 - Scan the farm picture, soil moisture and weather, AI cards, quick stats, then the 8-in-1 numbers and forecast.
 - **Realtime:** a new `soil_readings` row updates sensor cards and **rechecks** Home AI (usually reuse saved tips; Groq only if story fingerprint / cache says so). No pull required for tip updates while Home is open.
 - **Pull-to-refresh** still refetches soil + weather + AI path (weather is not Realtime). Forecast strip stays horizontal-only.
@@ -42,6 +46,7 @@ Caring neighbor farmer, **simple English**. Warm, calm, 2–4 short sentences wi
 
 ## Data & sources
 - **Soil cards (2×4 compact grid; 1 column if width < 360):** latest row from `soil_readings` (fetch + Realtime stream) via `SoilReadingsRepository`.
+- **Wetness (moisture):** the ring, "Needs water" / "Plenty of water", the grid chip, alerts and AI all use texture-aware wetness, not the raw probe %. Bands follow the crop planted where the sensor sits (`classifyMoistureBand` + `plantingBandRanges`): anything inside the crop's range is ok, and no global 15 / 95 floor applies when a crop range exists. Universal 30 / 85 (plus 15 / 95 critical) only when nothing is planted. The ring caption shows the raw value small ("Wetness · Sensor 18%"). If the probe reads clearly above what the plot's texture can hold, a hint says to check the soil texture. See [`CROP_RANGES.md`](../context/CROP_RANGES.md) hydro section.
 - **Forecast:** live **Open-Meteo** using farm lat/long (fail visibly if no farm / network error).
 - **Active crop:** `CropsRepository.fetchActivePlanting` for Nutrients + Groq crop/phase facts.
 - **Saved AI:** latest `ai_assessments` where `kind = 'home'`. Story fingerprint (bands including temp + rain advice + crop/phase + crop range token) is stored on the overview line (`SGFP:…`) so smarter regen can skip Groq when the farmer story is unchanged. Classified bands use the active crop’s catalog ranges when planted; otherwise universal floors. Critical bands → urgent tip voice + high priority. Call Edge Function `soilgood-insights` (`job=home`) only if none saved, fingerprint changed, `valid_until` passed (~12h), or `prompt_version` changed. No reading → no Groq. Triggers while Home is open: first load, pull, and **Realtime new reading id**. Closed app does not call Groq. Rules/bands: [`insights.json`](../../supabase/functions/soilgood-insights/insights.json). Crop research: [`CROP_RANGES.md`](../context/CROP_RANGES.md).

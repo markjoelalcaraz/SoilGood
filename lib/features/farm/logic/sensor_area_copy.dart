@@ -11,8 +11,13 @@ import '../../home/data/soil_reading.dart';
 enum SensorAreaFlag { ok, low, veryWet }
 
 /// Dry moisture or low NPK is a low area. Very wet is its own line.
-SensorAreaFlag sensorAreaFlag(SoilReading reading) {
-  final moisture = classifyMoistureBand(value: reading.moisturePercent);
+///
+/// Pass [crop] (the plot's range) so wetness inside the crop's range is ok.
+SensorAreaFlag sensorAreaFlag(SoilReading reading, {CropBandRanges? crop}) {
+  final moisture = classifyMoistureBand(
+    value: reading.moisturePercent,
+    crop: crop,
+  );
   if (moisture == 'dry' || moisture == 'critical_dry') {
     return SensorAreaFlag.low;
   }
@@ -54,7 +59,7 @@ String sensorAreaDetail(SoilReading reading, SensorAreaFlag flag) {
     final shown = moisture == moisture.roundToDouble()
         ? moisture.toStringAsFixed(0)
         : moisture.toStringAsFixed(1);
-    return 'Moisture $shown%';
+    return 'Wetness $shown%';
   }
   return 'Check this sensor';
 }

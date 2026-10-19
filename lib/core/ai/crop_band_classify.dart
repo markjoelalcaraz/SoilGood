@@ -8,7 +8,7 @@ library;
 
 import '../../features/crops/data/crop_catalog.dart';
 
-/// Global sensor floors (any crop / no crop).
+/// Global sensor floors. Moisture floors apply only when no crop range is known.
 const kMoistureCriticalDryLt = 15.0;
 const kMoistureCriticalWetGt = 95.0;
 const kTempCriticalLowLt = 10.0;
@@ -121,15 +121,20 @@ class CropBandRanges {
 }
 
 /// Moisture labels: critical_dry | dry | ok | wet | critical_wet | missing.
+///
+/// [value] is wetness (0–100). With a crop range, only that crop's range
+/// decides the band — any value inside it is ok. Global floors apply only
+/// when no crop range is known.
 String classifyMoistureBand({
   required double? value,
   CropBandRanges? crop,
 }) {
   if (value == null) return 'missing';
-  if (value < kMoistureCriticalDryLt) return 'critical_dry';
-  // Rice (class A) can sit near saturation; do not force critical_wet at 95.
-  final isPaddy = crop?.hydroClass == 'A';
-  if (!isPaddy && value > kMoistureCriticalWetGt) return 'critical_wet';
+  final hasCropRange = crop?.moistureMin != null && crop?.moistureMax != null;
+  if (!hasCropRange) {
+    if (value < kMoistureCriticalDryLt) return 'critical_dry';
+    if (value > kMoistureCriticalWetGt) return 'critical_wet';
+  }
 
   final min = crop?.moistureMin ?? kUniversalMoistureDryLt;
   final max = crop?.moistureMax ?? kUniversalMoistureWetGt;

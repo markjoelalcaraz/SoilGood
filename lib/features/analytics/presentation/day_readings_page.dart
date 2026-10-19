@@ -143,7 +143,9 @@ class _ReadingTile extends StatelessWidget {
           Expanded(
             child: Text(
               [
-                if (moisture != null) 'Moisture ${moisture.toStringAsFixed(0)}%',
+                if (moisture != null)
+                  'Wetness ${moisture.toStringAsFixed(0)}%'
+                      '${reading.hasWetness ? ' (sensor ${reading.sensorMoisturePercent!.toStringAsFixed(0)}%)' : ''}',
                 if (ph != null) 'pH ${ph.toStringAsFixed(1)}',
                 if (reading.nitrogen != null)
                   'N ${reading.nitrogen!.toStringAsFixed(0)}',

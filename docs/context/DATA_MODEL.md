@@ -111,7 +111,8 @@ erDiagram
 - `planted_at`, `expected_harvest_at`, `status`
   - `planned` \| `active` \| `harvested` \| `failed` \| `replaced`
   - **Change crop** sets `replaced` (not harvested — that is reserved for a real harvest later).
-- **v1:** at most one row with `status = 'active'` per `farm_id` (partial unique index `plantings_one_active_per_farm_uidx`). Cleanup + index + status check: [`supabase_plantings_one_active.sql`](supabase_plantings_one_active.sql).
+- **Several active crops per farm.** Each active planting is its own plot; sensors attach via `devices.planting_id`. The same crop cannot be active twice on one farm (`plantings_one_active_crop_per_farm_uidx`). Run [`supabase_plantings_one_active.sql`](supabase_plantings_one_active.sql) (status check), then [`supabase_multi_crop.sql`](supabase_multi_crop.sql) (drops the old one-per-farm index).
+- The app remembers which crop the farmer is viewing (`SelectedCrop`, local prefs). Home, Farm, and Profile → Sensors follow it.
 
 ### `ai_assessments`
 - `id`, `farm_id`

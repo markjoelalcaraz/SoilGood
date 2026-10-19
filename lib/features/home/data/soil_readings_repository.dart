@@ -4,11 +4,16 @@
 /// pull-to-refresh still calls [fetchLatest] so the farmer can force a reload.
 library;
 
+import '../../../core/soil/device_texture_resolver.dart';
 import '../../../core/supabase/supabase_bootstrap.dart';
 import 'soil_reading.dart';
 
 /// Loads and streams soil readings belonging to the signed-in farmer.
+///
+/// Moisture comes back as texture-aware wetness (see `soil_wetness.dart`).
 class SoilReadingsRepository {
+  final _textures = DeviceTextureResolver();
+
   /// Returns device IDs for all farms owned by the current user.
   Future<List<String>> _ownedDeviceIds() async {
     final uid = supabase.auth.currentUser?.id;
@@ -41,7 +46,7 @@ class SoilReadingsRepository {
         .maybeSingle();
 
     if (row == null) return null;
-    return SoilReading.fromJson(row);
+    return _textures.normalize(SoilReading.fromJson(row));
   }
 
   /// Live updates via Supabase Realtime stream on `soil_readings`.
@@ -56,10 +61,12 @@ class SoilReadingsRepository {
         .from('soil_readings')
         .stream(primaryKey: ['id'])
         .order('recorded_at', ascending: false)
-        .map((rows) {
+        .asyncMap((rows) async {
           final owned = rows.where((r) => deviceIds.contains(r['device_id']));
           if (owned.isEmpty) return null;
-          return SoilReading.fromJson(Map<String, dynamic>.from(owned.first));
+          return _textures.normalize(
+            SoilReading.fromJson(Map<String, dynamic>.from(owned.first)),
+          );
         });
   }
 }

@@ -137,7 +137,7 @@ class NotificationEvaluator {
           areaLow: true,
         ),
         body:
-            'Moisture is critically low${moisture == null ? '' : ' ($moisture)'}. '
+            'Soil wetness is critically low${moisture == null ? '' : ' ($moisture)'}. '
             'Do not wait. Water today.',
         dedupeKey: _dedupe('irrigation', ymd, deviceId),
         soilReadingId: reading.id,
@@ -156,7 +156,7 @@ class NotificationEvaluator {
           areaWet: true,
         ),
         body:
-            'Moisture is critically high${moisture == null ? '' : ' ($moisture)'}. '
+            'Soil wetness is critically high${moisture == null ? '' : ' ($moisture)'}. '
             'Do not water. Check drainage.',
         dedupeKey: _dedupe('irrigation', ymd, deviceId),
         soilReadingId: reading.id,
@@ -188,7 +188,7 @@ class NotificationEvaluator {
         severity: FarmNotificationSeverity.urgent,
         title: _named(sensorCode, 'Soil is dry', areaLow: true),
         body:
-            'Moisture is low${moisture == null ? '' : ' ($moisture)'}. '
+            'Soil wetness is low${moisture == null ? '' : ' ($moisture)'}. '
             'Irrigate today.',
         dedupeKey: _dedupe('irrigation', ymd, deviceId),
         soilReadingId: reading.id,
@@ -207,7 +207,7 @@ class NotificationEvaluator {
         areaWet: true,
       ),
       body:
-          'Moisture is high${moisture == null ? '' : ' ($moisture)'}. '
+          'Soil wetness is high${moisture == null ? '' : ' ($moisture)'}. '
           'Do not irrigate.',
       dedupeKey: _dedupe('irrigation', ymd, deviceId),
       soilReadingId: reading.id,

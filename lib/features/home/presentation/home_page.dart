@@ -4,6 +4,9 @@
 /// readings from Supabase, Open-Meteo weather for their farm pin, and Groq
 /// tips for today (Condition, Water today, Nutrients, and Crop care when planted),
 /// then quick stats and the sensor numbers. The farm picture sits on top.
+/// The farm can grow several crops: the header opens a crop picker, and every
+/// stat on Home follows the selected crop's sensors ([SelectedCrop]). A crop
+/// with no sensor shows only "Add sensor" — no numbers, no tips.
 /// Realtime soil updates also recheck Home AI (fingerprint gate — Groq only when
 /// the story changed). Not a pushed route — the bottom nav stays mounted.
 library;
@@ -29,9 +32,14 @@ import '../../../shared/widgets/ui_primitives.dart';
 import '../../crops/data/planting.dart';
 import '../../crops/data/crops_repository.dart';
 import '../../crops/logic/crop_timeline.dart';
+import '../../crops/logic/planting_band_ranges.dart';
+import '../../crops/logic/selected_crop.dart';
+import '../../crops/presentation/add_crop/add_crop_wizard_page.dart';
 import '../../farm/data/farm_sensor.dart';
 import '../../farm/data/plot_sensors_repository.dart';
+import '../../farm/logic/crop_illustration.dart';
 import '../../farm/logic/sensor_area_copy.dart';
+import '../../farm/presentation/add_sensor_page.dart';
 import '../../notifications/logic/notification_scope.dart';
 import '../../notifications/presentation/notifications_page.dart';
 import '../../shell/app_shell.dart';
@@ -77,7 +85,13 @@ class _HomePageState extends State<HomePage> with LivePage {
   Object? _aiError;
   bool _aiLoading = false;
   bool _hasActiveCrop = false;
+
+  /// Every active crop on the farm (picker rows).
+  List<Planting> _plantings = [];
+
+  /// Selected crop; Home stats follow its sensors. Null = nothing planted.
   Planting? _planting;
+  Object? _cropsError;
   String? _farmName;
   Object? _farmNameError;
   List<FarmSensor> _sensors = [];
@@ -103,6 +117,7 @@ class _HomePageState extends State<HomePage> with LivePage {
   Future<void> onLive(Set<LiveSource> changed) async {
     if (changed.contains(LiveSource.farms)) await _loadFarmName();
     if (changed.contains(LiveSource.devices)) await _loadSensors();
+    if (changed.contains(LiveSource.plantings)) await _loadCrops();
     if (changed.contains(LiveSource.plantings) ||
         changed.contains(LiveSource.assessments) ||
         changed.contains(LiveSource.farms)) {
@@ -120,15 +135,121 @@ class _HomePageState extends State<HomePage> with LivePage {
         setState(() => _loadError = e);
       },
     );
+    SelectedCrop.instance.plantingId.addListener(_onSelectedCropChanged);
     _start();
     unawaited(_loadFarmName());
-    unawaited(_loadSensors());
   }
 
   @override
   void dispose() {
+    SelectedCrop.instance.plantingId.removeListener(_onSelectedCropChanged);
     unawaited(_soilSub?.cancel() ?? Future.value());
     super.dispose();
+  }
+
+  /// Picker here or a chip on Farm switched crops. Swap stats, then recheck tips.
+  void _onSelectedCropChanged() {
+    if (!mounted) return;
+    final next = SelectedCrop.instance.resolve(_plantings);
+    if (next?.id == _planting?.id) return;
+    setState(() {
+      _planting = next;
+      _hasActiveCrop = next != null;
+      _assessment = null;
+      _aiError = null;
+    });
+    unawaited(_loadHomeAi());
+  }
+
+  /// Every active crop, then the saved selection (or the oldest crop).
+  Future<void> _loadCrops() async {
+    try {
+      final farmId = await withRefreshTimeout(_farmRepo.getPrimaryFarmId());
+      if (farmId == null || !mounted) return;
+      final plantings = await withRefreshTimeout(
+        _cropsRepo.fetchActivePlantings(farmId),
+      );
+      await SelectedCrop.instance.restore();
+      if (!mounted) return;
+      final selected = SelectedCrop.instance.resolve(plantings);
+      final switched = selected?.id != _planting?.id;
+      setState(() {
+        _plantings = plantings;
+        _planting = selected;
+        _hasActiveCrop = selected != null;
+        _cropsError = null;
+        if (switched) _assessment = null;
+      });
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _cropsError = e);
+    }
+  }
+
+  /// Sensors placed on the selected crop's plot.
+  List<FarmSensor> _cropSensors() {
+    final planting = _planting;
+    if (planting == null) return const [];
+    return [
+      for (final s in _sensors)
+        if (s.plantingId == planting.id) s,
+    ];
+  }
+
+  /// Reading Home shows: newest from the selected crop's sensors.
+  ///
+  /// With nothing planted, falls back to the newest reading on the farm.
+  SoilReading? _displayReading() {
+    if (_planting == null) return _preferLatest(_streamReading, _cached);
+    SoilReading? newest;
+    for (final s in _cropSensors()) {
+      final r = s.latest;
+      if (r == null) continue;
+      if (newest == null || r.recordedAt.isAfter(newest.recordedAt)) {
+        newest = r;
+      }
+    }
+    return newest;
+  }
+
+  /// Opens the Add a crop wizard. The new crop becomes selected when planted.
+  Future<void> _openAddCrop() async {
+    final planted = await Navigator.of(context).push<bool>(
+      AppPageRoutes.slideFromRight(const AddCropWizardPage()),
+    );
+    if (planted == true) await _loadCrops();
+  }
+
+  /// Claims a new kit onto the selected crop.
+  Future<void> _openAddSensor() async {
+    final planting = _planting;
+    if (planting == null) return;
+    final added = await Navigator.of(context).push<bool>(
+      AppPageRoutes.slideFromRight(
+        AddSensorPage(plantingId: planting.id, cropName: planting.crop.name),
+      ),
+    );
+    if (added == true) {
+      await _loadSensors();
+      await _loadHomeAi();
+    }
+  }
+
+  /// Moves an already-claimed kit with no plot onto the selected crop.
+  Future<void> _placeSensor(FarmSensor sensor) async {
+    final planting = _planting;
+    if (planting == null) return;
+    try {
+      await _sensorsRepo.placeOnPlot(
+        deviceId: sensor.id,
+        plantingId: planting.id,
+      );
+      await _loadSensors();
+      await _loadHomeAi();
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _sensorError = e is StateError ? e.message : e);
+    }
   }
 
   /// Display name for the home greeting. A missing name stays blank, not a fake farm.
@@ -146,11 +267,13 @@ class _HomePageState extends State<HomePage> with LivePage {
     }
   }
 
-  /// Soil + weather first (cards can paint), then cheap-load / regen Home AI.
+  /// Soil, weather, crops, and sensors first (cards can paint), then Home AI.
   Future<void> _start() async {
     await Future.wait([
       _warmCache(),
       _loadWeather(showSpinner: true),
+      _loadCrops(),
+      _loadSensors(),
     ]);
     await _loadHomeAi();
   }
@@ -170,12 +293,18 @@ class _HomePageState extends State<HomePage> with LivePage {
 
     final latest = _preferLatest(reading, _cached);
     if (latest == null) return;
-    unawaited(_loadSensors());
-    if (latest.id == _lastRealtimeAiSoilId) return;
+    if (latest.id == _lastRealtimeAiSoilId) {
+      unawaited(_loadSensors());
+      return;
+    }
 
     _lastRealtimeAiSoilId = latest.id;
     unawaited(_loadWeather(showSpinner: false));
-    unawaited(_loadHomeAi());
+    // Per-crop readings come from the sensor list, so refresh it before tips.
+    unawaited(() async {
+      await _loadSensors();
+      await _loadHomeAi();
+    }());
   }
 
   /// Kits on this farm, each with its latest reading, for the area lines.
@@ -310,9 +439,8 @@ class _HomePageState extends State<HomePage> with LivePage {
         _weatherLoading = false;
       }
     });
+    await Future.wait([_loadCrops(), _loadSensors(), _loadFarmName()]);
     await _loadHomeAi();
-    await _loadFarmName();
-    await _loadSensors();
   }
 
   /// Loads saved Home AI; calls Groq only when the story fingerprint says so.
@@ -336,23 +464,24 @@ class _HomePageState extends State<HomePage> with LivePage {
     }
   }
 
-  /// One Home AI cheap-load / regen pass against the current `_cached` reading.
+  /// One Home AI cheap-load / regen pass for the selected crop's reading.
+  ///
+  /// A crop with no sensor reading gets no tips (Home shows Add sensor).
   Future<void> _loadHomeAiOnce() async {
     if (!mounted) return;
-    final reading = _preferLatest(_streamReading, _cached);
+    final planting = _planting;
+    final reading = _displayReading();
     if (reading == null) {
       if (!mounted) return;
       setState(() {
         _assessment = null;
         _aiError = null;
         _aiLoading = false;
-        _hasActiveCrop = false;
-        _planting = null;
+        _hasActiveCrop = planting != null;
       });
       return;
     }
 
-    _lastRealtimeAiSoilId = reading.id;
     // Soft load: keep last tips on screen when we already have an assessment.
     setState(() => _aiLoading = true);
 
@@ -362,9 +491,6 @@ class _HomePageState extends State<HomePage> with LivePage {
         throw StateError('No farm found. Finish onboarding first.');
       }
       final insights = await InsightsConfig.load();
-      final planting = await withRefreshTimeout(
-        _cropsRepo.fetchActivePlanting(farmId),
-      );
       final timeline = planting == null ? null : timelineFor(planting);
       final hasCrop = planting != null;
       final cropName = planting?.crop.name;
@@ -384,8 +510,15 @@ class _HomePageState extends State<HomePage> with LivePage {
       );
 
       final saved = await withRefreshTimeout(
-        _aiRepo.fetchLatest(farmId: farmId, kind: 'home'),
+        _aiRepo.fetchLatest(
+          farmId: farmId,
+          kind: 'home',
+          plantingId: planting?.id,
+        ),
       );
+
+      // The farmer switched crops while this pass was running.
+      if (!mounted || _planting?.id != planting?.id) return;
 
       if (!shouldRegenHomeAi(
         saved: saved,
@@ -396,7 +529,6 @@ class _HomePageState extends State<HomePage> with LivePage {
         setState(() {
           _assessment = saved;
           _hasActiveCrop = hasCrop;
-          _planting = planting;
           _aiError = null;
           _aiLoading = false;
         });
@@ -433,11 +565,10 @@ class _HomePageState extends State<HomePage> with LivePage {
           recommendations: generated.recommendations,
         ),
       );
-      if (!mounted) return;
+      if (!mounted || _planting?.id != planting?.id) return;
       setState(() {
         _assessment = savedNew;
         _hasActiveCrop = hasCrop;
-        _planting = planting;
         _aiError = null;
         _aiLoading = false;
       });
@@ -463,20 +594,34 @@ class _HomePageState extends State<HomePage> with LivePage {
 
   @override
   Widget build(BuildContext context) {
-    final reading = _preferLatest(_streamReading, _cached);
+    final farmReading = _preferLatest(_streamReading, _cached);
+    final reading = _displayReading();
     final soilError = _loadError;
+    final planting = _planting;
+    final cropSensors = _cropSensors();
+    // Selected crop has no kit on its plot: show Add sensor, never farm numbers.
+    final noSensor = planting != null && cropSensors.isEmpty;
+    final watched = planting == null ? _sensors : cropSensors;
+    CropBandRanges? rangesOf(FarmSensor s) => sensorBandRanges(s, _plantings);
     final attention = [
-      for (final sensor in _sensors)
+      for (final sensor in watched)
         if (sensor.latest != null &&
-            sensorAreaFlag(sensor.latest!) != SensorAreaFlag.ok)
+            sensorAreaFlag(sensor.latest!, crop: rangesOf(sensor)) !=
+                SensorAreaFlag.ok)
           sensor,
     ];
     final shown = attention.isNotEmpty ? attention.first.latest : reading;
+    // Judge the shown reading by the crop on its plot (selected crop if none flagged).
+    final shownRanges = attention.isNotEmpty
+        ? rangesOf(attention.first)
+        : planting == null
+        ? null
+        : plantingBandRanges(planting);
     final shownCode = attention.isNotEmpty
         ? attention.first.claimCode
         : _codeForReading(reading);
     final waitingFirstSoil =
-        !_soilFetchDone && reading == null && soilError == null;
+        !_soilFetchDone && farmReading == null && soilError == null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -490,11 +635,20 @@ class _HomePageState extends State<HomePage> with LivePage {
             hero: _HomeHero(
               farmName: _farmName,
               nameError: _farmNameError,
-              onOpenFarm: () => ShellScope.maybeOf(context)?.selectTab(1),
+              plantings: _plantings,
+              selected: planting,
+              sensors: _sensors,
+              cropsError: _cropsError,
+              onSelectCrop: (p) => SelectedCrop.instance.select(p.id),
+              onAddCrop: _openAddCrop,
             ),
-            focus: waitingFirstSoil
+            focus: waitingFirstSoil || noSensor
                 ? null
-                : _HomeFocusRow(reading: shown, weather: _weather),
+                : _HomeFocusRow(
+                    reading: shown,
+                    weather: _weather,
+                    crop: shownRanges,
+                  ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -512,7 +666,10 @@ class _HomePageState extends State<HomePage> with LivePage {
                     Text(
                       sensorAreaHeadline(
                         claimCode: sensor.claimCode,
-                        flag: sensorAreaFlag(sensor.latest!),
+                        flag: sensorAreaFlag(
+                          sensor.latest!,
+                          crop: rangesOf(sensor),
+                        ),
                         cropName: sensor.cropName,
                       ),
                       style: const TextStyle(
@@ -525,7 +682,7 @@ class _HomePageState extends State<HomePage> with LivePage {
                     Text(
                       sensorAreaDetail(
                         sensor.latest!,
-                        sensorAreaFlag(sensor.latest!),
+                        sensorAreaFlag(sensor.latest!, crop: rangesOf(sensor)),
                       ),
                       style: const TextStyle(
                         color: AppColors.textSecondary,
@@ -553,11 +710,21 @@ class _HomePageState extends State<HomePage> with LivePage {
           ],
           if (waitingFirstSoil)
             const _HomeFirstLoadSkeleton()
+          else if (noSensor)
+            _NoSensorCard(
+              planting: planting,
+              unplaced: [
+                for (final s in _sensors)
+                  if (!s.onActivePlot) s,
+              ],
+              onAdd: _openAddSensor,
+              onPlace: _placeSensor,
+            )
           else ...[
             if (shown != null) ...[
               const SizedBox(height: 10),
               Text(
-                quickSoilInsight(shown),
+                quickSoilInsight(shown, crop: shownRanges),
                 style: const TextStyle(
                   color: AppColors.textSecondary,
                   height: 1.45,
@@ -576,8 +743,8 @@ class _HomePageState extends State<HomePage> with LivePage {
             const SizedBox(height: 20),
             _QuickStats(
               reading: shown,
-              planting: _planting,
-              areaCount: _sensors.length,
+              planting: planting,
+              sensorCount: watched.length,
               onOpenFarm: () => ShellScope.maybeOf(context)?.selectTab(1),
             ),
             const SizedBox(height: 20),
@@ -597,7 +764,7 @@ class _HomePageState extends State<HomePage> with LivePage {
                 ),
               )
             else
-              _SensorGrid(reading: shown),
+              _SensorGrid(reading: shown, crop: shownRanges),
           ],
           const SizedBox(height: 24),
           const SectionHeader(
@@ -687,16 +854,27 @@ class _StickyBell extends StatelessWidget {
   }
 }
 
+/// Farm banner with the greeting and the crop switcher button.
 class _HomeHero extends StatelessWidget {
   const _HomeHero({
     required this.farmName,
     required this.nameError,
-    required this.onOpenFarm,
+    required this.plantings,
+    required this.selected,
+    required this.sensors,
+    required this.cropsError,
+    required this.onSelectCrop,
+    required this.onAddCrop,
   });
 
   final String? farmName;
   final Object? nameError;
-  final VoidCallback? onOpenFarm;
+  final List<Planting> plantings;
+  final Planting? selected;
+  final List<FarmSensor> sensors;
+  final Object? cropsError;
+  final ValueChanged<Planting> onSelectCrop;
+  final VoidCallback onAddCrop;
 
   String _hello() {
     final hour = DateTime.now().hour;
@@ -705,23 +883,12 @@ class _HomeHero extends StatelessWidget {
     return 'Good evening';
   }
 
-  /// Bottom sheet with the farmer's farms + Add farm. v1 is one farm, but the
-  /// schema already allows many — the picker is ready for that growth.
-  Future<void> _openFarmPicker(BuildContext context, String current) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final shell = ShellScope.maybeOf(context);
-    List<FarmSummary> farms = const [];
-    Object? loadErr;
-    try {
-      farms = await FarmLocationRepository().listFarms();
-    } catch (e) {
-      loadErr = e;
-    }
-    if (!context.mounted) return;
-
+  /// Bottom sheet listing only crops planted on the Crops page, plus Add a crop.
+  Future<void> _openCropPicker(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -729,58 +896,54 @@ class _HomeHero extends StatelessWidget {
       builder: (sheetCtx) {
         return SafeArea(
           top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetCtx).height * 0.8,
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
               children: [
                 Text(
-                  'Your farms',
+                  'Your crops',
                   style: GoogleFonts.literata(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 12),
-                if (loadErr != null)
+                if (cropsError != null) ...[
                   Text(
-                    'Could not load farms:\n$loadErr',
+                    'Could not load crops:\n$cropsError',
                     style: const TextStyle(color: AppColors.error),
-                  )
-                else if (farms.isEmpty)
+                  ),
+                  const SizedBox(height: 8),
+                ] else if (plantings.isEmpty) ...[
                   const Text(
-                    'No farms yet.',
+                    'Nothing planted yet. Add a crop to see its stats here.',
                     style: TextStyle(color: AppColors.textSecondary),
-                  )
-                else
-                  for (final f in farms)
-                    _FarmPickerRow(
-                      name: f.name,
-                      selected: f.name == current,
-                      onTap: () {
-                        Navigator.of(sheetCtx).pop();
-                        // v1 is one farm — switching is a no-op; keep farmer informed.
-                        if (f.name != current) {
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Multi-farm switching is coming soon.',
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                const SizedBox(height: 8),
-                _FarmPickerRow(
-                  name: 'Add another farm',
-                  selected: false,
-                  icon: Icons.add_circle_outline,
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                for (final p in plantings) ...[
+                  _CropPickerRow(
+                    planting: p,
+                    sensors: [
+                      for (final s in sensors)
+                        if (s.plantingId == p.id) s,
+                    ],
+                    selected: p.id == selected?.id,
+                    onTap: () {
+                      Navigator.of(sheetCtx).pop();
+                      onSelectCrop(p);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                _AddCropRow(
                   onTap: () {
                     Navigator.of(sheetCtx).pop();
-                    // Farm tab is the right place to manage areas and sensors.
-                    shell?.selectTab(1);
+                    onAddCrop();
                   },
                 ),
               ],
@@ -797,6 +960,8 @@ class _HomeHero extends StatelessWidget {
         ? 'My farm'
         : farmName!.trim();
     final letter = name.isEmpty ? 'S' : name[0].toUpperCase();
+    final crop = selected?.crop.name;
+    final buttonLabel = crop ?? (plantings.isEmpty ? 'Add a crop' : name);
 
     return SizedBox(
       height: 250,
@@ -834,7 +999,7 @@ class _HomeHero extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _hello(),
+                        '${_hello()} · $name',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -847,7 +1012,7 @@ class _HomeHero extends StatelessWidget {
                         ),
                       ),
                       TextButton(
-                        onPressed: () => _openFarmPicker(context, name),
+                        onPressed: () => _openCropPicker(context),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.textPrimary,
                           padding: EdgeInsets.zero,
@@ -856,7 +1021,7 @@ class _HomeHero extends StatelessWidget {
                           alignment: Alignment.centerLeft,
                         ),
                         child: Text(
-                          '$name ▾',
+                          '$buttonLabel ▾',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.literata(
@@ -889,47 +1054,230 @@ class _HomeHero extends StatelessWidget {
   }
 }
 
-/// Row inside the Home farm picker bottom sheet (farm or Add action).
-class _FarmPickerRow extends StatelessWidget {
-  const _FarmPickerRow({
-    required this.name,
+/// One planted crop in the Home picker: picture, day count, sensor status.
+class _CropPickerRow extends StatelessWidget {
+  const _CropPickerRow({
+    required this.planting,
+    required this.sensors,
     required this.selected,
     required this.onTap,
-    this.icon,
   });
 
-  final String name;
+  final Planting planting;
+
+  /// Kits placed on this crop's plot.
+  final List<FarmSensor> sensors;
   final bool selected;
   final VoidCallback onTap;
-  final IconData? icon;
+
+  /// "Soil OK" / "Needs attention" / "No sensor yet" for the second line.
+  (String, Color) _status() {
+    if (sensors.isEmpty) return ('No sensor yet', AppColors.textSecondary);
+    final ranges = plantingBandRanges(planting);
+    final flagged = sensors.any(
+      (s) =>
+          s.latest != null &&
+          sensorAreaFlag(s.latest!, crop: ranges) != SensorAreaFlag.ok,
+    );
+    if (flagged) return ('Needs attention', AppColors.error);
+    final waiting = sensors.every((s) => s.latest == null);
+    if (waiting) return ('Waiting for a reading', AppColors.textSecondary);
+    return ('Soil OK', AppColors.navIcon);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        child: Row(
-          children: [
-            Icon(
-              icon ?? Icons.spa_outlined,
-              color: AppColors.navIcon,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+    final timeline = timelineFor(planting);
+    final asset = cropIllustrationAsset(planting.crop.name);
+    final (status, statusColor) = _status();
+    final dayLine = timeline == null
+        ? 'Planted'
+        : 'Day ${timeline.dayNumber} of ${timeline.totalDays}';
+
+    return Material(
+      color: selected ? AppColors.surfaceLow : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: selected ? AppColors.primary : AppColors.surfaceMuted,
+          width: 1.5,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: asset == null
+                      ? const ColoredBox(
+                          color: AppColors.surfaceMuted,
+                          child: Icon(Icons.eco, color: AppColors.navIcon),
+                        )
+                      : Image.asset(asset, fit: BoxFit.cover),
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      planting.crop.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      dayLine,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      status,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (selected)
+                const Icon(Icons.check, color: AppColors.navIcon, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Last row of the crop picker: opens the Crops list to plant another crop.
+class _AddCropRow extends StatelessWidget {
+  const _AddCropRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.buttonGreen, width: 1.5),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          child: Row(
+            children: [
+              Icon(Icons.add_circle_outline, color: AppColors.navIcon),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Add a crop',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navIcon,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown instead of every Home stat when the selected crop has no sensor.
+class _NoSensorCard extends StatelessWidget {
+  const _NoSensorCard({
+    required this.planting,
+    required this.unplaced,
+    required this.onAdd,
+    required this.onPlace,
+  });
+
+  final Planting planting;
+
+  /// Claimed kits that are not on any crop yet.
+  final List<FarmSensor> unplaced;
+  final VoidCallback onAdd;
+  final ValueChanged<FarmSensor> onPlace;
+
+  @override
+  Widget build(BuildContext context) {
+    final crop = planting.crop.name;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: SoftCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.sensors_off, color: AppColors.navIcon, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              'No sensor on $crop yet',
+              style: GoogleFonts.literata(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            if (selected)
-              const Icon(Icons.check, color: AppColors.navIcon, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              'Add a sensor to this plot to see soil readings, tips, and '
+              'stats for $crop.',
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                height: 1.45,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            for (final sensor in unplaced) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Place ${sensor.label} on $crop?',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () => onPlace(sensor),
+                  child: Text('Place on $crop'),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton(
+                onPressed: onAdd,
+                child: const Text('Add sensor'),
+              ),
+            ),
           ],
         ),
       ),
@@ -938,22 +1286,28 @@ class _FarmPickerRow extends StatelessWidget {
 }
 
 class _HomeFocusRow extends StatelessWidget {
-  const _HomeFocusRow({required this.reading, required this.weather});
+  const _HomeFocusRow({
+    required this.reading,
+    required this.weather,
+    this.crop,
+  });
 
   final SoilReading? reading;
   final WeatherSnapshot? weather;
+
+  /// Crop range of the plot this reading came from; null = universal bands.
+  final CropBandRanges? crop;
 
   @override
   Widget build(BuildContext context) {
     final moisture = reading?.moisturePercent;
     final temp = weather?.temperatureC;
-    final label = moisture == null
-        ? 'Waiting'
-        : moisture < 35
-        ? 'Needs water'
-        : moisture > 80
-        ? 'Plenty of water'
-        : 'Looking okay';
+    final label = switch (classifyMoistureBand(value: moisture, crop: crop)) {
+      'missing' => 'Waiting',
+      'critical_dry' || 'dry' => 'Needs water',
+      'critical_wet' || 'wet' => 'Plenty of water',
+      _ => 'Looking okay',
+    };
     final rainTomorrow = weather != null && weather!.daily.length > 1
         ? '${weather!.daily[1].rainProbability.round()}% rain tomorrow'
         : null;
@@ -979,16 +1333,6 @@ class _HomeFocusRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  const Text(
-                    'Soil on this area',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
                   ),
                 ],
               ),
@@ -1114,13 +1458,15 @@ class _QuickStats extends StatelessWidget {
   const _QuickStats({
     required this.reading,
     required this.planting,
-    required this.areaCount,
+    required this.sensorCount,
     required this.onOpenFarm,
   });
 
   final SoilReading? reading;
   final Planting? planting;
-  final int areaCount;
+
+  /// Sensors on the selected crop (or the whole farm when nothing is planted).
+  final int sensorCount;
   final VoidCallback? onOpenFarm;
 
   @override
@@ -1129,14 +1475,14 @@ class _QuickStats extends StatelessWidget {
     final narrow = isNarrowPhone(context);
     final tiles = [
       _Stat(
-        icon: Icons.spa_outlined,
-        label: 'Areas',
-        value: areaCount == 0 ? '—' : '$areaCount',
+        icon: Icons.sensors,
+        label: 'Sensors',
+        value: sensorCount == 0 ? '—' : '$sensorCount',
         onTap: onOpenFarm,
       ),
       _Stat(
         icon: Icons.water_drop_outlined,
-        label: 'Soil moisture',
+        label: 'Soil wetness',
         value: reading?.moisturePercent == null
             ? '—'
             : '${reading!.moisturePercent!.round()}%',
@@ -1242,9 +1588,12 @@ class _Stat extends StatelessWidget {
 }
 
 class _SensorGrid extends StatelessWidget {
-  const _SensorGrid({required this.reading});
+  const _SensorGrid({required this.reading, this.crop});
 
   final SoilReading reading;
+
+  /// Crop range for the wetness chip; null = universal bands.
+  final CropBandRanges? crop;
 
   /// Low/High badge only — skip "Live" so the compact 8-card grid stays readable.
   (String?, StatusChipTone) _rangeChip({
@@ -1265,26 +1614,22 @@ class _SensorGrid extends StatelessWidget {
     final phosphorus = reading.phosphorus;
     final potassium = reading.potassium;
     final salinity = reading.salinity;
-    final moistureChip = _rangeChip(value: moisture, low: 30, high: 85);
+    final moistureChip =
+        switch (classifyMoistureBand(value: moisture, crop: crop)) {
+          'critical_dry' || 'dry' => ('Low', StatusChipTone.warn),
+          'critical_wet' || 'wet' => ('High', StatusChipTone.warn),
+          'ok' => (null, StatusChipTone.good),
+          _ => (null, StatusChipTone.neutral),
+        };
     final nChip = _rangeChip(value: nitrogen, low: 45);
     final pChip = _rangeChip(value: phosphorus, low: 20);
     final kChip = _rangeChip(value: potassium, low: 80);
     final saltChip = _rangeChip(value: salinity, high: 4);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 360;
-        return GridView.count(
-          crossAxisCount: narrow ? 1 : 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: narrow ? 3.8 : 2.6,
-      children: [
+    final tiles = [
         _MetricTile(
           icon: Icons.water_drop_outlined,
-          label: 'Moisture',
+          label: 'Wetness',
           value: moisture == null ? '—' : '${moisture.toStringAsFixed(0)}%',
           chip: moistureChip.$1,
           tone: moistureChip.$2,
@@ -1338,6 +1683,34 @@ class _SensorGrid extends StatelessWidget {
           chip: kChip.$1,
           tone: kChip.$2,
         ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Rows size to their content (big phone fonts grow the tile instead
+        // of overflowing); the two tiles in a row share the taller height.
+        final cols = constraints.maxWidth < 280 ? 1 : 2;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < tiles.length; i += cols) ...[
+              if (i > 0) const SizedBox(height: 8),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var j = 0; j < cols; j++) ...[
+                      if (j > 0) const SizedBox(width: 8),
+                      Expanded(
+                        child: i + j < tiles.length
+                            ? tiles[i + j]
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ],
         );
       },
@@ -1365,7 +1738,8 @@ class _MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SoftCard(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+      expand: true,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1382,26 +1756,26 @@ class _MetricTile extends StatelessWidget {
                 ),
                 child: Icon(icon, color: AppColors.navIcon, size: 14),
               ),
-              const Spacer(),
-              if (chip != null)
-                Flexible(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: StatusChip(label: chip!, tone: tone),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
+              ),
+              if (chip != null) ...[
+                const SizedBox(width: 4),
+                StatusChip(label: chip!, tone: tone),
+              ],
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 11,
-            ),
-          ),
+          const SizedBox(height: 6),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,

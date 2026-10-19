@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/ai/crop_band_classify.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/ui_primitives.dart';
 import '../data/farm_sensor.dart';
@@ -19,10 +20,14 @@ class PlotSensorCard extends StatelessWidget {
     required this.unplaced,
     required this.onAdd,
     required this.onPlace,
+    this.ranges,
     super.key,
   });
 
   final String cropName;
+
+  /// This plot's crop range; sensor flags are judged against it.
+  final CropBandRanges? ranges;
   final List<FarmSensor> onPlot;
   final List<FarmSensor> unplaced;
   final VoidCallback onAdd;
@@ -55,7 +60,7 @@ class PlotSensorCard extends StatelessWidget {
             )
           else
             for (final sensor in onPlot) ...[
-              _SensorRow(sensor: sensor),
+              _SensorRow(sensor: sensor, ranges: ranges),
               const SizedBox(height: 8),
             ],
           for (final sensor in unplaced) ...[
@@ -87,14 +92,17 @@ class PlotSensorCard extends StatelessWidget {
 }
 
 class _SensorRow extends StatelessWidget {
-  const _SensorRow({required this.sensor});
+  const _SensorRow({required this.sensor, this.ranges});
 
   final FarmSensor sensor;
+  final CropBandRanges? ranges;
 
   @override
   Widget build(BuildContext context) {
     final reading = sensor.latest;
-    final flag = reading == null ? null : sensorAreaFlag(reading);
+    final flag = reading == null
+        ? null
+        : sensorAreaFlag(reading, crop: ranges);
     final low = flag == SensorAreaFlag.low;
     final wet = flag == SensorAreaFlag.veryWet;
     final title = flag == null || flag == SensorAreaFlag.ok

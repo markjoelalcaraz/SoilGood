@@ -4,13 +4,18 @@
 /// `fetchLatest` / `watchLatest`. Daily series come from RPC `analytics_soil_daily`.
 library;
 
+import '../../../core/soil/device_texture_resolver.dart';
 import '../../../core/supabase/supabase_bootstrap.dart';
 import '../../home/data/soil_reading.dart';
 import '../logic/manila_time.dart';
 import 'daily_soil_bucket.dart';
 
 /// History fetch for Analytics charts and the day-readings drill-down.
+///
+/// Moisture comes back as texture-aware wetness (see `soil_wetness.dart`).
 class SoilHistoryRepository {
+  final _textures = DeviceTextureResolver();
+
   /// Daily buckets for an inclusive Manila calendar range.
   Future<List<DailySoilBucket>> fetchDaily({
     required DateTime start,
@@ -26,8 +31,13 @@ class SoilHistoryRepository {
     );
 
     final rows = (raw as List).cast<dynamic>();
+    final texture = await _textures.farmTexture();
     return rows
-        .map((e) => DailySoilBucket.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => DailySoilBucket.fromJson(
+            Map<String, dynamic>.from(e as Map),
+          ).withWetness(texture),
+        )
         .toList();
   }
 
@@ -51,9 +61,11 @@ class SoilHistoryRepository {
         .lt('recorded_at', to.toIso8601String())
         .order('recorded_at', ascending: true);
 
-    return (rows as List)
-        .map((e) => SoilReading.fromJson(Map<String, dynamic>.from(e as Map)))
-        .toList();
+    return _textures.normalizeAll(
+      (rows as List)
+          .map((e) => SoilReading.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+    );
   }
 
   /// Optional crop name for the active planting, used as Groq context.

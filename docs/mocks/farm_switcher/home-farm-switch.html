@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoilGood — Home farm switcher (mock)</title>
+<link href="https://fonts.googleapis.com/css2?family=Literata:wght@600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --primary: #62A844; --btn: #6AAF45; --pill: #C8EEB0; --navIcon: #4E9434;
+    --bg: #F6F8F3; --card: #FFFFFF; --text: #243028; --muted: #6B756D;
+    --warn: #E0A030; --bad: #D0533F; --line: #E4EADF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; background: #DDE3D8; color: var(--text);
+         display: flex; justify-content: center; gap: 32px; padding: 24px; flex-wrap: wrap; }
+  html { scrollbar-width: thin; scrollbar-color: rgba(74,78,74,.35) transparent; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: rgba(74,78,74,.28); border-radius: 8px; }
+
+  .notes { max-width: 340px; font-size: 14px; line-height: 1.5; }
+  .notes h1 { font-family: 'Literata', serif; font-size: 22px; margin-bottom: 8px; }
+  .notes ol { padding-left: 18px; } .notes li { margin-bottom: 6px; }
+  .notes code { background: #fff; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+  .phone { width: 360px; height: 760px; background: var(--bg); border-radius: 36px; overflow: hidden;
+           position: relative; box-shadow: 0 20px 50px rgba(0,0,0,.18); border: 8px solid #1E241F; }
+  .scroll { height: calc(100% - 68px); overflow-y: auto; }
+
+  /* Hero */
+  .hero { height: 210px; position: relative; color: #fff; padding: 18px 16px;
+          background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.05) 60%), var(--heroImg, #6AAF45);
+          background-size: cover; transition: background .4s; }
+  .hero-top { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: #fff; color: var(--navIcon);
+            display: grid; place-items: center; font-weight: 800; flex-shrink: 0; }
+  .hello { font-size: 12px; opacity: .9; }
+  .farm-btn { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,.18);
+              border: 1px solid rgba(255,255,255,.45); color: #fff; border-radius: 999px; padding: 4px 10px 4px 12px;
+              font: 700 15px 'Nunito Sans'; cursor: pointer; max-width: 210px; min-height: 32px; }
+  .farm-btn span.name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bell { margin-left: auto; width: 40px; height: 40px; border-radius: 50%; background: #fff; display: grid; place-items: center; color: var(--text); }
+  .hero-crop { position: absolute; left: 16px; bottom: 34px; right: 16px; }
+  .hero-crop .label { font-size: 12px; opacity: .9; }
+  .hero-crop .crop { font-family: 'Literata', serif; font-size: 24px; font-weight: 700; }
+
+  .content { margin-top: -22px; position: relative; padding: 0 14px 20px; transition: opacity .25s; }
+  .content.fading { opacity: .35; }
+  .card { background: var(--card); border-radius: 20px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(36,48,40,.06); }
+  .card h3 { font-family: 'Literata', serif; font-size: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
+  .card h3 small { font: 600 11px 'Nunito Sans'; color: var(--muted); }
+
+  .progress-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .bar { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .bar > div { height: 100%; background: var(--btn); border-radius: 99px; transition: width .5s; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
+  .stat .k { font-size: 11px; color: var(--muted); font-weight: 700; }
+  .stat .v { font-size: 20px; font-weight: 800; white-space: nowrap; }
+  .stat .s { font-size: 11px; font-weight: 700; }
+  .ok { color: var(--navIcon); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+
+  .ai { background: #F3F8EF; border: 1px solid var(--pill); }
+  .ai p { font-size: 13px; line-height: 1.45; }
+  .weather { display: flex; align-items: center; gap: 12px; }
+  .weather .t { font-size: 28px; font-weight: 800; }
+  .weather .d { font-size: 12px; color: var(--muted); }
+
+  .empty { text-align: center; padding: 18px 10px; }
+  .empty p { font-size: 13px; color: var(--muted); margin: 6px 0 12px; }
+  .btn { background: var(--btn); color: var(--text); border: 0; border-radius: 999px; padding: 12px 18px; font: 800 14px 'Nunito Sans'; min-height: 48px; cursor: pointer; }
+
+  /* Bottom nav */
+  .nav { position: absolute; bottom: 0; left: 0; right: 0; height: 68px; background: #fff; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid var(--line); }
+  .nav div { font-size: 11px; font-weight: 700; color: var(--muted); text-align: center; padding: 6px 14px; border-radius: 999px; }
+  .nav div.on { background: var(--pill); color: var(--navIcon); }
+
+  /* Sheet */
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.35); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 5; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 28px 28px 0 0; padding: 8px 18px 20px;
+           transform: translateY(100%); transition: transform .25s ease; z-index: 6; max-height: 80%; overflow-y: auto; }
+  .open .scrim { opacity: 1; pointer-events: auto; } .open .sheet { transform: translateY(0); }
+  .handle { width: 36px; height: 4px; background: #CCD3C8; border-radius: 4px; margin: 6px auto 12px; }
+  .sheet h2 { font-family: 'Literata', serif; font-size: 20px; margin-bottom: 12px; }
+  .farm-row { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 16px; border: 1.5px solid var(--line);
+              margin-bottom: 8px; cursor: pointer; min-height: 64px; }
+  .farm-row.sel { border-color: var(--primary); background: #F3F8EF; }
+  .thumb { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; font-size: 24px; flex-shrink: 0; }
+  .farm-row .info { flex: 1; min-width: 0; }
+  .farm-row .n { font-weight: 800; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .farm-row .c { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
+  .check { color: var(--primary); font-size: 20px; font-weight: 800; }
+  .add-row { border-style: dashed; color: var(--navIcon); font-weight: 800; }
+
+  .toast { position: absolute; left: 16px; right: 16px; bottom: 80px; background: #243028; color: #fff; font-size: 13px;
+           padding: 12px 14px; border-radius: 12px; opacity: 0; transform: translateY(10px); transition: all .25s; z-index: 7; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="notes">
+  <h1>Home farm switcher</h1>
+  <p>Interactive mock. Tap the <b>farm name</b> in the header.</p>
+  <ol>
+    <li>The sheet lists <b>only crops added on the Crops page</b>. Empty farms never appear.</li>
+    <li>Each row: crop name, farm name, day count, soil status, and harvest date.</li>
+    <li>Picking a crop closes the sheet, and <b>all of Home</b> switches to it: header, crop progress, soil readings, AI advice, and weather.</li>
+    <li>"Add a crop" opens the Crops page.</li>
+  </ol>
+  <p style="margin-top:10px;color:#6B756D">Mock data only. Not app code.</p>
+</div>
+
+<div class="phone" id="phone">
+  <div class="scroll">
+    <div class="hero" id="hero">
+      <div class="hero-top">
+        <div class="avatar" id="avatar">M</div>
+        <div style="min-width:0">
+          <div class="hello">Good afternoon</div>
+          <button class="farm-btn" onclick="openSheet()">
+            <span class="name" id="farmName">My farm</span> <span>▾</span>
+          </button>
+        </div>
+        <div class="bell">🔔</div>
+      </div>
+      <div class="hero-crop">
+        <div class="label" id="heroLabel">Growing now</div>
+        <div class="crop" id="heroCrop">Squash</div>
+      </div>
+    </div>
+
+    <div class="content" id="content"></div>
+  </div>
+
+  <div class="nav">
+    <div class="on">🏠<br>Home</div><div>🗺️<br>Farm</div><div>🌱<br>Crops</div><div>📊<br>Analytics</div>
+  </div>
+
+  <div class="scrim" onclick="closeSheet()"></div>
+  <div class="sheet">
+    <div class="handle"></div>
+    <h2>Your crops</h2>
+    <div id="farmList"></div>
+    <div class="farm-row add-row" onclick="addFarm()">
+      <div class="thumb" style="background:#F3F8EF">＋</div>
+      <div class="info">Add a crop</div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  const farms = [
+    { id: 'a', name: 'My farm', place: 'Tarlac City', crop: 'Squash', emoji: '🎃', tint: '#FFF1DC',
+      day: 16, total: 50, harvest: 'Nov 22', heroImg: 'linear-gradient(135deg,#7DB85A,#4E9434)',
+      status: ['ok', 'Soil OK'],
+      soil: { moisture: [42, '%', 'ok', 'Good'], ph: [6.4, '', 'ok', 'Ideal'], temp: [27, '°C', 'ok', 'Normal'], ec: [0.9, 'mS/cm', 'ok', 'Normal'],
+              n: [38, 'mg/kg', 'warn', 'Low'], p: [22, 'mg/kg', 'ok', 'OK'], k: [140, 'mg/kg', 'ok', 'OK'], sal: [0.4, 'ppt', 'ok', 'Low'] },
+      ai: 'Soil is moist enough. <b>No watering today.</b> Nitrogen is getting low. Side-dress with urea this week, before the flowering stage.',
+      weather: ['⛅', 31, 'Partly cloudy · 20% rain tomorrow'], updated: '5 min ago' },
+    { id: 'b', name: 'Bukid sa Capas', place: 'Capas, Tarlac', crop: 'Eggplant', emoji: '🍆', tint: '#EFE6F7',
+      day: 48, total: 70, harvest: 'Nov 10', heroImg: 'linear-gradient(135deg,#8F7BB5,#4E9434)',
+      status: ['bad', 'Needs water'],
+      soil: { moisture: [18, '%', 'bad', 'Dry'], ph: [5.6, '', 'warn', 'Acidic'], temp: [31, '°C', 'warn', 'Warm'], ec: [1.4, 'mS/cm', 'ok', 'Normal'],
+              n: [55, 'mg/kg', 'ok', 'OK'], p: [12, 'mg/kg', 'warn', 'Low'], k: [110, 'mg/kg', 'ok', 'OK'], sal: [0.7, 'ppt', 'ok', 'Low'] },
+      ai: '<b>Water today, early morning (about 20 L per plant row).</b> Soil is dry and no rain is expected for 3 days. pH is slightly acidic. Consider lime after harvest.',
+      weather: ['☀️', 34, 'Sunny · no rain for 3 days'], updated: '12 min ago' },
+    { id: 'c', name: 'Likod-bahay', place: 'Concepcion, Tarlac', crop: 'Tomato', emoji: '🍅', tint: '#FDE4DF',
+      day: 5, total: 75, harvest: 'Dec 28', heroImg: 'linear-gradient(135deg,#D9765F,#4E9434)',
+      status: ['ok', 'Soil OK'],
+      soil: { moisture: [51, '%', 'ok', 'Good'], ph: [6.8, '', 'ok', 'Ideal'], temp: [26, '°C', 'ok', 'Normal'], ec: [1.1, 'mS/cm', 'ok', 'Normal'],
+              n: [62, 'mg/kg', 'ok', 'OK'], p: [30, 'mg/kg', 'ok', 'OK'], k: [165, 'mg/kg', 'ok', 'OK'], sal: [0.3, 'ppt', 'ok', 'Low'] },
+      ai: 'Seedlings are settling in. <b>No watering needed</b>, since rain is likely this afternoon. Check for damping-off after the rain.',
+      weather: ['🌧️', 28, 'Light rain · 70% chance'], updated: '1 hr ago' },
+  ];
+  let selected = 'a';
+
+  const $ = id => document.getElementById(id);
+
+  // Renders one row per active crop (from the Crops page) inside the picker sheet.
+  function renderList() {
+    $('farmList').innerHTML = farms.filter(f => f.crop).map(f => `
+      <div class="farm-row ${f.id === selected ? 'sel' : ''}" onclick="pickFarm('${f.id}')">
+        <div class="thumb" style="background:${f.tint}">${f.emoji}</div>
+        <div class="info">
+          <div class="n">${f.crop}</div>
+          <div class="c">${f.name} · Day ${f.day} of ${f.total}</div>
+          <div class="c"><span class="dot" style="background:var(--${f.status[0] === 'ok' ? 'navIcon' : f.status[0]})"></span>${f.status[1]} · harvest ~${f.harvest}</div>
+        </div>
+        ${f.id === selected ? '<div class="check">✓</div>' : ''}
+      </div>`).join('');
+  }
+
+  // Renders Home for the selected farm (header + all cards).
+  function renderHome() {
+    const f = farms.find(x => x.id === selected);
+    $('farmName').textContent = `${f.emoji} ${f.crop} · ${f.name}`;
+    $('avatar').textContent = f.name[0].toUpperCase();
+    $('hero').style.setProperty('--heroImg', f.heroImg);
+    $('heroLabel').textContent = f.crop ? `Growing now · ${f.place}` : f.place;
+    $('heroCrop').textContent = f.crop ?? 'No crop yet';
+
+    const weather = `
+      <div class="card"><h3>Weather <small>${f.place}</small></h3>
+        <div class="weather"><div style="font-size:34px">${f.weather[0]}</div>
+          <div><div class="t">${f.weather[1]}°C</div><div class="d">${f.weather[2]}</div></div></div></div>`;
+
+    if (!f.crop) {
+      $('content').innerHTML = `
+        <div class="card empty"><div style="font-size:36px">🌱</div>
+          <h3 style="justify-content:center">Nothing planted here yet</h3>
+          <p>Choose a crop for ${f.name} to see its plan, soil advice, and harvest date.</p>
+          <button class="btn">Choose a crop</button></div>${weather}`;
+      return;
+    }
+
+    const s = f.soil;
+    const stat = (k, [v, u, c, t]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}<small style="font-size:11px"> ${u}</small></div><div class="s ${c}">${t}</div></div>`;
+    $('content').innerHTML = `
+      <div class="card">
+        <h3>${f.emoji} ${f.crop} <small>Harvest around ${f.harvest}</small></h3>
+        <div class="progress-row"><span>Day ${f.day} of ${f.total}</span><span>${f.total - f.day} days left</span></div>
+        <div class="bar"><div style="width:${Math.round(f.day / f.total * 100)}%"></div></div>
+      </div>
+      <div class="card ai"><h3>Today's advice <small>AI · ${f.updated}</small></h3><p>${f.ai}</p></div>
+      <div class="card"><h3>Soil now <small>Updated ${f.updated}</small></h3>
+        <div class="grid">
+          ${stat('Moisture', s.moisture)}${stat('pH', s.ph)}${stat('Temperature', s.temp)}${stat('EC', s.ec)}
+          ${stat('Nitrogen (N)', s.n)}${stat('Phosphorus (P)', s.p)}${stat('Potassium (K)', s.k)}${stat('Salinity', s.sal)}
+        </div></div>
+      ${weather}`;
+  }
+
+  function openSheet() { renderList(); $('phone').classList.add('open'); }
+  function closeSheet() { $('phone').classList.remove('open'); }
+
+  // Switches Home to the chosen farm with a short fade so the change is noticeable.
+  function pickFarm(id) {
+    closeSheet();
+    if (id === selected) return;
+    selected = id;
+    $('content').classList.add('fading');
+    setTimeout(() => { renderHome(); $('content').classList.remove('fading'); }, 200);
+    const f = farms.find(x => x.id === id);
+    toast(`Showing ${f.crop} · ${f.name}`);
+  }
+
+  function addFarm() { closeSheet(); toast('Opens the Crops page to plant a new crop'); }
+
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  renderHome();
+</script>
+</body>
+</html>

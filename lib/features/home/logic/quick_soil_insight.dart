@@ -8,8 +8,11 @@ library;
 import '../../../core/ai/crop_band_classify.dart';
 import '../data/soil_reading.dart';
 
-/// Builds a short insight sentence from the latest reading (universal bands).
-String quickSoilInsight(SoilReading? reading) {
+/// Builds a short insight sentence from the latest reading.
+///
+/// Uses [crop] ranges when the reading belongs to a crop plot; universal
+/// bands otherwise.
+String quickSoilInsight(SoilReading? reading, {CropBandRanges? crop}) {
   if (reading == null) {
     return 'Connect a device to see live soil insights here.';
   }
@@ -18,10 +21,13 @@ String quickSoilInsight(SoilReading? reading) {
     return 'Sensor reading looks off. Check the probe before trusting soil advice.';
   }
 
-  final moisture = classifyMoistureBand(value: reading.moisturePercent);
-  final ph = classifyPhBand(value: reading.ph);
-  final temp = classifyTempBand(value: reading.soilTemperatureC);
-  final salt = classifySalinityBand(value: reading.salinity);
+  final moisture = classifyMoistureBand(
+    value: reading.moisturePercent,
+    crop: crop,
+  );
+  final ph = classifyPhBand(value: reading.ph, crop: crop);
+  final temp = classifyTempBand(value: reading.soilTemperatureC, crop: crop);
+  final salt = classifySalinityBand(value: reading.salinity, crop: crop);
 
   final parts = <String>[];
 

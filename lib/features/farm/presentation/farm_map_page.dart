@@ -1,11 +1,14 @@
-/// Farm tab inside the app shell: a map of the one saved farm.
+/// Farm tab inside the app shell: a map of the farmer's saved farm.
 ///
-/// One active crop can hold several sensors. Tapping that area grows the tile
-/// and the crop plan rises underneath (phases, water week, care), then the
-/// sensors on that crop. Plantings, sensors, and readings also arrive live
-/// while this tab is open. Choosing a crop still opens the crop list.
+/// The farm can grow several crops at once; each crop is its own plot with its
+/// own sensors. Chips switch the selected crop (shared with Home via
+/// [SelectedCrop]). Tapping the crop area grows the tile and the plan rises
+/// underneath (phases, water week, care), then the sensors on that crop.
+/// "+ Add crop" opens the crop list. Plantings, sensors, and readings also
+/// arrive live while this tab is open.
 library;
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -21,8 +24,10 @@ import '../../../shared/widgets/app_refresh_scroll.dart';
 import '../../../shared/widgets/ui_primitives.dart';
 import '../../crops/data/crops_repository.dart';
 import '../../crops/data/planting.dart';
+import '../../crops/logic/planting_band_ranges.dart';
+import '../../crops/logic/selected_crop.dart';
 import '../../crops/presentation/crop_plan_panel.dart';
-import '../../crops/presentation/crops_page.dart';
+import '../../crops/presentation/add_crop/add_crop_wizard_page.dart';
 import '../../shell/app_shell.dart';
 import '../../weather/data/farm_location_repository.dart';
 import '../data/farm_sensor.dart';
@@ -45,6 +50,9 @@ class _FarmMapPageState extends State<FarmMapPage> with LivePage {
   final _sensorsRepo = PlotSensorsRepository();
 
   String? _farmName;
+  List<Planting> _plantings = [];
+
+  /// Selected crop among [_plantings]; null when nothing is planted.
   Planting? _planting;
   List<FarmSensor> _sensors = [];
   Object? _error;
@@ -71,10 +79,25 @@ class _FarmMapPageState extends State<FarmMapPage> with LivePage {
   @override
   void initState() {
     super.initState();
+    SelectedCrop.instance.plantingId.addListener(_onSelectedCropChanged);
     _load();
   }
 
-  /// Farm name plus the one active planting, if any.
+  @override
+  void dispose() {
+    SelectedCrop.instance.plantingId.removeListener(_onSelectedCropChanged);
+    super.dispose();
+  }
+
+  /// Home (or a chip here) picked another crop. Show that plot.
+  void _onSelectedCropChanged() {
+    if (!mounted) return;
+    final next = SelectedCrop.instance.resolve(_plantings);
+    if (next?.id == _planting?.id) return;
+    setState(() => _planting = next);
+  }
+
+  /// Farm name, every active crop, and every sensor on the farm.
   Future<void> _load() async {
     try {
       final farmId = await withRefreshTimeout(_farms.getPrimaryFarmId());
@@ -82,16 +105,18 @@ class _FarmMapPageState extends State<FarmMapPage> with LivePage {
         throw StateError('No farm found. Finish onboarding first.');
       }
       final name = await withRefreshTimeout(_farms.getPrimaryFarmName());
-      final planting = await withRefreshTimeout(
-        _crops.fetchActivePlanting(farmId),
+      final plantings = await withRefreshTimeout(
+        _crops.fetchActivePlantings(farmId),
       );
       final sensors = await withRefreshTimeout(
         _sensorsRepo.listForFarm(farmId),
       );
+      await SelectedCrop.instance.restore();
       if (!mounted) return;
       setState(() {
         _farmName = name;
-        _planting = planting;
+        _plantings = plantings;
+        _planting = SelectedCrop.instance.resolve(plantings);
         _sensors = sensors;
         _error = null;
         _loading = false;
@@ -106,10 +131,19 @@ class _FarmMapPageState extends State<FarmMapPage> with LivePage {
     }
   }
 
-  /// Crop list. When the farmer plants one, this area focuses and shows the plan.
+  /// Chip tap: make [planting] the shared selected crop and open its plan.
+  void _selectCrop(Planting planting) {
+    unawaited(SelectedCrop.instance.select(planting.id));
+    setState(() {
+      _planting = planting;
+      _focus = 'crop';
+    });
+  }
+
+  /// Crop list. When the farmer plants one, it becomes selected and shows its plan.
   Future<void> _openCropPicker() async {
     final picked = await Navigator.of(context).push<bool>(
-      AppPageRoutes.slideFromRight(const CropsPage()),
+      AppPageRoutes.slideFromRight(const AddCropWizardPage()),
     );
     if (picked != true || !mounted) return;
     await _load();
@@ -117,10 +151,14 @@ class _FarmMapPageState extends State<FarmMapPage> with LivePage {
     setState(() => _focus = 'crop');
   }
 
-  /// The plan ended the planting. Clear this area, then open the crop list.
+  /// The plan ended the planting. Drop that plot, then open the crop list.
   Future<void> _afterCropEnded() async {
     setState(() {
-      _planting = null;
+      _plantings = [
+        for (final p in _plantings)
+          if (p.id != _planting?.id) p,
+      ];
+      _planting = SelectedCrop.instance.resolve(_plantings);
       _focus = null;
     });
     await _load();
@@ -182,7 +220,11 @@ class _FarmMapPageState extends State<FarmMapPage> with LivePage {
             Text(
               planting == null
                   ? 'Sensor on this farm'
-                  : '${planting.crop.name} · ${_sensors.where((s) => s.plantingId == planting.id).length} sensors',
+                  : '${_plantings.length} ${_plantings.length == 1 ? 'crop' : 'crops'} · '
+                        '${planting.crop.name} · '
+                        '${_sensors.where((s) => s.plantingId == planting.id).length} sensors',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w700,
@@ -222,14 +264,20 @@ class _FarmMapPageState extends State<FarmMapPage> with LivePage {
                     selected: _focus == null,
                     onTap: () => setState(() => _focus = null),
                   ),
-                  if (planting != null) ...[
+                  for (final p in _plantings) ...[
                     const SizedBox(width: 8),
                     _Chip(
-                      label: planting.crop.name,
-                      selected: _focus == 'crop',
-                      onTap: () => setState(() => _focus = 'crop'),
+                      label: p.crop.name,
+                      selected: _focus == 'crop' && p.id == planting?.id,
+                      onTap: () => _selectCrop(p),
                     ),
                   ],
+                  const SizedBox(width: 8),
+                  _Chip(
+                    label: '+ Add crop',
+                    selected: false,
+                    onTap: _openCropPicker,
+                  ),
                 ],
               ),
             ),
@@ -242,10 +290,11 @@ class _FarmMapPageState extends State<FarmMapPage> with LivePage {
               onCrop: planting == null
                   ? _openCropPicker
                   : () => setState(() => _focus = 'crop'),
+              onAddCrop: _openCropPicker,
             ),
             const SizedBox(height: 12),
             _RiseIn(
-              key: ValueKey(_focus ?? 'overview'),
+              key: ValueKey('${_focus ?? 'overview'}-${planting?.id}'),
               child: _focus == null
                   ? const SoftCard(
                       child: Text(
@@ -292,6 +341,7 @@ class _FarmMapPageState extends State<FarmMapPage> with LivePage {
                     )
                   : planting != null
                   ? Column(
+                      key: ValueKey(planting.id),
                       children: [
                         CropPlanPanel(
                           planting: planting,
@@ -301,6 +351,7 @@ class _FarmMapPageState extends State<FarmMapPage> with LivePage {
                         const SizedBox(height: 12),
                         PlotSensorCard(
                           cropName: planting.crop.name,
+                          ranges: plantingBandRanges(planting),
                           onPlot: _sensors
                               .where((s) => s.plantingId == planting.id)
                               .toList(),
@@ -365,6 +416,7 @@ class _FarmGrid extends StatelessWidget {
     required this.cropAsset,
     required this.onSensor,
     required this.onCrop,
+    required this.onAddCrop,
   });
 
   final String? focus;
@@ -372,6 +424,7 @@ class _FarmGrid extends StatelessWidget {
   final String? cropAsset;
   final VoidCallback onSensor;
   final VoidCallback onCrop;
+  final VoidCallback onAddCrop;
 
   int _col(bool left) {
     if (focus == null) return 1;
@@ -442,7 +495,7 @@ class _FarmGrid extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   flex: _col(false),
-                  child: const _EmptyTile(label: '+ Area'),
+                  child: _EmptyTile(label: '+ Add crop', onTap: onAddCrop),
                 ),
               ],
             ),

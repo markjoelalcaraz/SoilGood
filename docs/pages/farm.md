@@ -6,12 +6,13 @@
 - [ ] Done
 
 ## Purpose / goal
-Show the farmer's one farm as a picture map. Tapping the crop area shows that crop's plan underneath: phases, water week, care, then the sensors on that plot.
+Show the farmer's farm as a picture map. The farm can grow several crops at once; each crop is its own plot with its own sensors. Tapping a crop shows its plan underneath: phases, water week, care, then the sensors on that plot.
 
 ## User flow
 - Open the Farm tab.
+- Chips: Overview, one chip per planted crop, then **+ Add crop**. A crop chip makes that crop the selected crop (Home follows it too).
 - Tap the crop. The tile grows. Under it: the crop plan (phases, 7-day water, care, Change crop, Mark watered), then every sensor on that crop (`Sensor (SG-7K2M)`).
-- **Choose a crop** opens the crop list. After the farmer confirms a crop, the list closes and this area shows the plan.
+- **Choose a crop** / **+ Add crop** opens the [Add a crop wizard](add-crop.md): soil type → (texture) → sensor → first reading → crops for that plot. After planting, the new crop is selected.
 - **Change crop** ends the planting and opens the crop list again.
 - **Add sensor** types a new sticker code and places that kit on this crop.
 - A kit claimed in onboarding with no plot yet asks **Place on {crop}**.
@@ -22,7 +23,7 @@ Show the farmer's one farm as a picture map. Tapping the crop area shows that cr
 - Active `plantings` row joined to `crops`. Loaded on open, pull, and Realtime. Run [`supabase_realtime.sql`](../context/supabase_realtime.sql) once so plantings, sensors, AI, and irrigation are in the publication.
 - Care insights and the rolling water plan reload when those rows change. Open-Meteo is not a database table; it refreshes with soil and pull.
 - Plot pictures from `assets/crops/`, one shared tile per catalog crop.
-- v1 is still one active planting. Extra areas are placeholders.
+- Several active plantings per farm (`fetchActivePlantings`). Selected crop is shared through `SelectedCrop`. Needs [`supabase_multi_crop.sql`](../context/supabase_multi_crop.sql).
 
 ## UI states
 | State | What the user sees |

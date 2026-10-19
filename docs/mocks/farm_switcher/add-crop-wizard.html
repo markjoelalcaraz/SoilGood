@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoilGood — Add a crop wizard (mock)</title>
+<link href="https://fonts.googleapis.com/css2?family=Literata:wght@600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --primary: #62A844; --btn: #6AAF45; --pill: #C8EEB0; --navIcon: #4E9434;
+    --bg: #F6F8F3; --card: #FFFFFF; --text: #243028; --muted: #6B756D;
+    --warn: #E0A030; --bad: #D0533F; --line: #E4EADF; --soft: #F3F8EF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; background: #DDE3D8; color: var(--text);
+         display: flex; justify-content: center; gap: 32px; padding: 24px; flex-wrap: wrap; }
+  html { scrollbar-width: thin; scrollbar-color: rgba(74,78,74,.35) transparent; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: rgba(74,78,74,.28); border-radius: 8px; }
+
+  .notes { max-width: 360px; font-size: 14px; line-height: 1.55; }
+  .notes h1 { font-family: 'Literata', serif; font-size: 22px; margin-bottom: 8px; }
+  .notes h2 { font-size: 14px; margin: 14px 0 4px; color: var(--navIcon); }
+  .notes ol, .notes ul { padding-left: 18px; } .notes li { margin-bottom: 5px; }
+  .notes .jump button { margin: 3px 4px 0 0; border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 4px 10px; font: 700 12px 'Nunito Sans'; cursor: pointer; }
+
+  .phone { width: 360px; height: 760px; background: var(--bg); border-radius: 36px; overflow: hidden;
+           position: relative; box-shadow: 0 20px 50px rgba(0,0,0,.18); border: 8px solid #1E241F; display: flex; flex-direction: column; }
+  .topbar { background: #fff; padding: 14px 12px 10px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
+  .back { width: 44px; height: 44px; border-radius: 50%; border: 0; background: transparent; font-size: 20px; cursor: pointer; }
+  .topbar .title { font-family: 'Literata', serif; font-weight: 700; font-size: 18px; flex: 1; }
+  .steps { display: flex; gap: 6px; padding: 10px 16px 0; background: #fff; }
+  .steps div { flex: 1; height: 5px; border-radius: 99px; background: var(--line); transition: background .3s; }
+  .steps div.on { background: var(--btn); }
+  .steplabel { background: #fff; padding: 6px 16px 10px; font-size: 12px; font-weight: 800; color: var(--muted); border-bottom: 1px solid var(--line); }
+
+  .body { flex: 1; overflow-y: auto; padding: 16px; }
+  .footer { padding: 12px 16px 16px; background: #fff; border-top: 1px solid var(--line); }
+  h2.q { font-family: 'Literata', serif; font-size: 22px; margin-bottom: 4px; }
+  p.sub { color: var(--muted); font-size: 13px; margin-bottom: 14px; line-height: 1.45; }
+
+  .opt { display: flex; align-items: center; gap: 12px; background: #fff; border: 1.5px solid var(--line); border-radius: 16px;
+         padding: 12px; margin-bottom: 8px; cursor: pointer; min-height: 56px; }
+  .opt.sel { border-color: var(--primary); background: var(--soft); }
+  .opt.dis { opacity: .5; cursor: not-allowed; }
+  .opt .info { flex: 1; min-width: 0; }
+  .opt .n { font-weight: 800; font-size: 15px; }
+  .opt .h { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .radio { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #C5CEC0; flex-shrink: 0; display: grid; place-items: center; }
+  .opt.sel .radio { border-color: var(--primary); }
+  .opt.sel .radio::after { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--primary); }
+  .tag { font-size: 10px; font-weight: 800; background: var(--pill); color: var(--navIcon); padding: 2px 8px; border-radius: 99px; margin-left: 6px; vertical-align: middle; }
+  .swatch { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; }
+
+  .btn { width: 100%; background: var(--btn); color: var(--text); border: 0; border-radius: 999px; padding: 14px; font: 800 15px 'Nunito Sans'; min-height: 50px; cursor: pointer; }
+  .btn:disabled { background: #D8DED3; color: #9AA396; cursor: not-allowed; }
+  .btn.ghost { background: transparent; color: var(--navIcon); border: 1.5px solid var(--btn); margin-top: 8px; }
+
+  .section { font-size: 12px; font-weight: 800; letter-spacing: .5px; color: var(--navIcon); margin: 16px 0 8px; }
+  .input { width: 100%; border: 1.5px solid var(--line); border-radius: 14px; padding: 14px; font: 800 18px 'Nunito Sans';
+           letter-spacing: 2px; text-transform: uppercase; background: #fff; }
+  .input:focus { outline: none; border-color: var(--primary); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .err { font-size: 12px; color: var(--bad); font-weight: 700; margin-top: 6px; }
+
+  .card { background: #fff; border-radius: 18px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(36,48,40,.06); }
+  .summary { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px; }
+  .summary .k { color: var(--muted); font-weight: 700; } .summary .v { font-weight: 800; }
+
+  .wait { text-align: center; padding: 18px 8px; }
+  .pulse { width: 86px; height: 86px; border-radius: 50%; background: var(--pill); margin: 6px auto 14px; display: grid; place-items: center; font-size: 36px; position: relative; }
+  .pulse::before, .pulse::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--btn); animation: ring 2s infinite; }
+  .pulse::after { animation-delay: 1s; }
+  @keyframes ring { from { transform: scale(1); opacity: .8; } to { transform: scale(1.7); opacity: 0; } }
+  .wait h3 { font-family: 'Literata', serif; font-size: 19px; margin-bottom: 6px; }
+  .wait p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .demo { margin-top: 14px; font-size: 11px; color: var(--muted); }
+  .demo button { border: 1px dashed var(--muted); background: transparent; border-radius: 8px; padding: 6px 10px; font: 700 12px 'Nunito Sans'; cursor: pointer; color: var(--muted); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; font-weight: 800; padding: 5px 10px; border-radius: 99px; background: var(--soft); color: var(--navIcon); }
+  .chip.warn { background: #FCF1DC; color: #9A6A12; }
+
+  .match { background: #fff; border-radius: 18px; overflow: hidden; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(36,48,40,.06); }
+  .match .head { height: 92px; padding: 12px 14px; color: #fff; display: flex; flex-direction: column; justify-content: flex-end; position: relative; }
+  .match .pct { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,.25); border-radius: 99px; padding: 4px 10px; font-size: 12px; font-weight: 800; }
+  .match .name { font-family: 'Literata', serif; font-size: 22px; font-weight: 700; }
+  .match .emoji { position: absolute; right: 14px; bottom: 8px; font-size: 40px; opacity: .85; }
+  .match .why { padding: 12px 14px 4px; font-size: 13px; color: var(--muted); font-style: italic; line-height: 1.45; }
+  .match .act { padding: 8px 14px 14px; }
+  .match .act .btn { padding: 11px; min-height: 48px; font-size: 14px; }
+
+  .done { text-align: center; padding-top: 10px; }
+  .done .big { font-size: 56px; }
+  .done h3 { font-family: 'Literata', serif; font-size: 22px; margin: 6px 0; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left; }
+  .stat { border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
+  .stat .k { font-size: 11px; color: var(--muted); font-weight: 700; }
+  .stat .v { font-size: 19px; font-weight: 800; }
+
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10; }
+  .scrim.show { display: flex; }
+  .dialog { background: #fff; border-radius: 24px; padding: 20px; width: 100%; }
+  .dialog h4 { font-family: 'Literata', serif; font-size: 19px; margin-bottom: 8px; }
+  .dialog p { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
+  .dialog .row { display: flex; gap: 8px; justify-content: flex-end; }
+  .dialog .row button { border: 0; border-radius: 99px; padding: 10px 16px; font: 800 14px 'Nunito Sans'; cursor: pointer; min-height: 44px; }
+  .dialog .cancel { background: transparent; color: var(--navIcon); }
+  .dialog .ok { background: var(--btn); color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="notes">
+  <h1>Add a crop: wizard</h1>
+  <p>Interactive mock. Opened from <b>Home → Your crops → Add a crop</b> or <b>Farm → + Add crop</b>.</p>
+  <h2>Steps</h2>
+  <ol>
+    <li><b>Soil type</b> (BSWM series). The farm's series is pre-selected. "Not sure" is allowed.</li>
+    <li><b>Soil texture</b>, suggested from the series. The farmer can change it.</li>
+    <li><b>Sensor</b> (required): type a sticker code, or pick a kit already on the farm that has no plot.</li>
+    <li><b>Wait for the first reading</b> from that sensor. Matches appear on their own when it arrives (live).</li>
+    <li><b>Crop matches</b> based on <i>this plot's</i> sensor reading + soil + weather.</li>
+    <li><b>Done</b>: the crop is selected on Home with stats from its own sensor.</li>
+  </ol>
+  <h2>Behavior</h2>
+  <ul>
+    <li>The plot (soil + sensor) is saved at step 3, so the farmer can leave while waiting and come back later.</li>
+    <li>A kit already on another crop cannot be picked (one sensor = one plot).</li>
+    <li>Crops already growing on the farm are not listed in matches.</li>
+  </ul>
+  <h2>Jump to a step</h2>
+  <div class="jump">
+    <button onclick="go(1)">1 Soil type</button><button onclick="go(2)">2 Texture</button><button onclick="go(3)">3 Sensor</button>
+    <button onclick="go(4)">4 Waiting</button><button onclick="go(5)">5 Matches</button><button onclick="go(6)">6 Done</button>
+  </div>
+  <p style="margin-top:12px;color:#6B756D">Mock data only. Not app code.</p>
+</div>
+
+<div class="phone">
+  <div class="topbar">
+    <button class="back" onclick="back()" aria-label="Back">←</button>
+    <div class="title">Add a crop</div>
+  </div>
+  <div class="steps" id="steps"><div></div><div></div><div></div><div></div></div>
+  <div class="steplabel" id="steplabel"></div>
+  <div class="body" id="body"></div>
+  <div class="footer" id="footer"></div>
+
+  <div class="scrim" id="scrim">
+    <div class="dialog">
+      <h4 id="dlgTitle"></h4>
+      <p>This adds a new crop plot with its own plan. Your other crops stay as they are.</p>
+      <div class="row">
+        <button class="cancel" onclick="closeDlg()">Cancel</button>
+        <button class="ok" onclick="plant()">Plant</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const FARM_SERIES = 'bantog';
+  const series = [
+    ['bantog', 'Bantog', 'clay_loam', 'Sticky clay loam: drains slowly, cracks when dry'],
+    ['maligaya', 'Maligaya', 'clay', 'Heavy clay: very slow drainage'],
+    ['bigaa', 'Bigaa', 'clay', 'Firm clay: hardens when dry'],
+    ['san_manuel', 'San Manuel', 'loam', 'Friable loam: good for many crops'],
+    ['quingua', 'Quingua', 'loam', 'Medium loam: rice and cash crops'],
+    ['umingan', 'Umingan', 'sandy_loam', 'Sandy loam with stones underneath'],
+    ['san_fernando', 'San Fernando', 'clay_loam', 'Clay loam: strong for rice and corn'],
+    ['angeles', 'Angeles', 'sandy', 'Sand: drains fast, lower fertility'],
+    ['obando', 'Obando', 'sandy_loam', 'Sandy loam: good for root crops'],
+    ['other', 'Not sure / not listed', null, 'We will use the texture you pick next'],
+  ];
+  const textures = [
+    ['sandy', 'Sandy', 'Gritty, dries quickly', '#E9D8A6'],
+    ['sandy_loam', 'Sandy loam', 'A bit gritty, holds some water', '#D9BE8C'],
+    ['loam', 'Loam', 'Balanced, not too sandy or muddy', '#A98663'],
+    ['clay_loam', 'Clay loam', 'A bit sticky, with a little grit', '#8C6A4F'],
+    ['clay', 'Clay', 'Sticky, drains slowly', '#6E5140'],
+    ['unknown', 'Not sure', 'Texture will not count in the match', '#E4EADF'],
+  ];
+  const kits = [
+    { code: 'SG-4P9Q', on: null },
+    { code: 'SG-7K2M', on: 'Squash' },
+  ];
+  const matches = [
+    ['Eggplant', '🍆', 88, 'Moisture and pH sit right for eggplant. Clay loam holds water well through dry days.', '#8F7BB5'],
+    ['Okra', '🌿', 81, 'Warm soil and good potassium suit okra. Watch drainage after heavy rain.', '#6AAF45'],
+    ['Corn', '🌽', 74, 'Nitrogen is a bit low for corn. It will grow, but plan a side-dress early.', '#D6A43A'],
+  ];
+
+  const state = { step: 1, series: FARM_SERIES, texture: null, textureTouched: false, sensor: null, typed: '', typedErr: '', crop: null };
+  const $ = id => document.getElementById(id);
+  const seriesOf = id => series.find(s => s[0] === id);
+  const textureOf = id => textures.find(t => t[0] === id);
+
+  // Texture suggestion follows the series until the farmer changes it.
+  function suggestedTexture() { return seriesOf(state.series)?.[2] ?? null; }
+  function currentTexture() { return state.textureTouched ? state.texture : (suggestedTexture() ?? state.texture); }
+
+  function go(n) { state.step = n; render(); }
+  function back() { if (state.step > 1 && state.step < 6) go(state.step - 1); }
+
+  function render() {
+    const labels = ['Step 1 of 4 · Soil type', 'Step 2 of 4 · Soil texture', 'Step 3 of 4 · Sensor', 'Step 4 of 4 · First reading', 'Step 4 of 4 · Choose a crop', 'Done'];
+    const bar = Math.min(state.step, 4);
+    [...$('steps').children].forEach((d, i) => d.classList.toggle('on', i < bar || state.step >= 5));
+    $('steplabel').textContent = labels[state.step - 1];
+    ({ 1: s1, 2: s2, 3: s3, 4: s4, 5: s5, 6: s6 })[state.step]();
+  }
+
+  function s1() {
+    $('body').innerHTML = `
+      <h2 class="q">What soil type is this plot?</h2>
+      <p class="sub">Pick the soil series for the spot where you will plant. Your farm's soil is selected already.</p>
+      ${series.map(([id, name, , hint]) => `
+        <div class="opt ${state.series === id ? 'sel' : ''}" onclick="state.series='${id}'; state.textureTouched=false; render()">
+          <div class="info"><div class="n">${name}${id === FARM_SERIES ? '<span class="tag">Same as your farm</span>' : ''}</div><div class="h">${hint}</div></div>
+          <div class="radio"></div>
+        </div>`).join('')}`;
+    $('footer').innerHTML = `<button class="btn" ${state.series ? '' : 'disabled'} onclick="go(2)">Next</button>`;
+  }
+
+  function s2() {
+    const cur = currentTexture();
+    const sug = suggestedTexture();
+    const sName = seriesOf(state.series)?.[1];
+    $('body').innerHTML = `
+      <h2 class="q">How does the soil feel?</h2>
+      <p class="sub">${sug ? `Suggested from <b>${sName}</b>. Change it if your soil feels different.` : 'Wet a small lump and rub it between your fingers.'}</p>
+      ${textures.map(([id, name, hint, color]) => `
+        <div class="opt ${cur === id ? 'sel' : ''}" onclick="state.texture='${id}'; state.textureTouched=true; render()">
+          <div class="swatch" style="background:${color}"></div>
+          <div class="info"><div class="n">${name}${id === sug ? '<span class="tag">Suggested</span>' : ''}</div><div class="h">${hint}</div></div>
+          <div class="radio"></div>
+        </div>`).join('')}`;
+    $('footer').innerHTML = `<button class="btn" ${cur ? '' : 'disabled'} onclick="go(3)">Next</button>`;
+  }
+
+  function s3() {
+    $('body').innerHTML = `
+      <h2 class="q">Which sensor is in this soil?</h2>
+      <p class="sub">A sensor is required. Its readings decide which crops fit this plot.</p>
+      <div class="section">TYPE THE CODE ON THE STICKER</div>
+      <input class="input" id="code" placeholder="SG-XXXX" maxlength="7" value="${state.typed}"
+             oninput="typeCode(this.value)" />
+      ${state.typedErr ? `<div class="err">${state.typedErr}</div>` : '<div class="hint">Printed on the sensor box, e.g. SG-7K2M</div>'}
+      <div class="section">OR PICK A SENSOR ON YOUR FARM</div>
+      ${kits.map(k => `
+        <div class="opt ${k.on ? 'dis' : ''} ${state.sensor === k.code && !state.typed ? 'sel' : ''}" ${k.on ? '' : `onclick="pickKit('${k.code}')"`}>
+          <div class="swatch" style="background:var(--soft);display:grid;place-items:center;font-size:20px">📡</div>
+          <div class="info"><div class="n">Sensor (${k.code})</div><div class="h">${k.on ? `Already on ${k.on}` : 'Not on a plot yet'}</div></div>
+          ${k.on ? '' : '<div class="radio"></div>'}
+        </div>`).join('')}`;
+    const ok = !!state.sensor;
+    $('footer').innerHTML = `<button class="btn" ${ok ? '' : 'disabled'} onclick="go(4)">Save plot and continue</button>`;
+    if (state.typed) { const i = $('code'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+  }
+
+  // Typed sticker code wins over a picked kit. Codes on another crop are rejected.
+  function typeCode(v) {
+    state.typed = v.toUpperCase().trim();
+    state.typedErr = '';
+    state.sensor = null;
+    if (/^SG-[A-Z0-9]{4}$/.test(state.typed)) {
+      const used = kits.find(k => k.code === state.typed && k.on);
+      if (used) state.typedErr = `Sensor (${used.code}) is already on ${used.on}.`;
+      else state.sensor = state.typed;
+    }
+    s3();
+  }
+  function pickKit(code) { state.typed = ''; state.typedErr = ''; state.sensor = code; s3(); }
+
+  function plotSummary() {
+    const s = seriesOf(state.series); const t = textureOf(currentTexture());
+    return `<div class="card"><div class="summary">
+      <div class="k">Soil type</div><div class="v">${s[1]}</div>
+      <div class="k">Texture</div><div class="v">${t[1]}</div>
+      <div class="k">Sensor</div><div class="v">${state.sensor ?? 'SG-4P9Q'}</div>
+    </div></div>`;
+  }
+
+  function s4() {
+    $('body').innerHTML = `
+      ${plotSummary()}
+      <div class="card wait">
+        <div class="pulse">📡</div>
+        <h3>Waiting for the first reading</h3>
+        <p>Sensor (${state.sensor ?? 'SG-4P9Q'}) usually sends one within <b>15 minutes</b>. Crop matches will show up here on their own.</p>
+        <p style="margin-top:8px">You can leave this page. Find this plot later in <b>Home → Your crops</b> as "New plot · waiting".</p>
+        <div class="demo">Mock only: <button onclick="go(5)">Simulate: reading arrives</button></div>
+      </div>`;
+    $('footer').innerHTML = `<button class="btn ghost" onclick="alert('Back to Home. The plot stays saved.')">I'll come back later</button>`;
+  }
+
+  function s5() {
+    $('body').innerHTML = `
+      <h2 class="q">Crops for this plot</h2>
+      <p class="sub">Based on Sensor (${state.sensor ?? 'SG-4P9Q'}), this plot's soil, and this week's weather.</p>
+      <div class="card">
+        <div class="section" style="margin-top:0">THIS PLOT RIGHT NOW · 2 min ago</div>
+        <div class="chips">
+          <span class="chip">Moisture 46%</span><span class="chip">pH 6.3</span><span class="chip">27°C</span>
+          <span class="chip">EC 1.0</span><span class="chip warn">N 38 · low</span><span class="chip">P 24</span><span class="chip">K 150</span>
+        </div>
+        <div class="chips" style="margin-top:8px">
+          <span class="chip">${seriesOf(state.series)[1]}</span><span class="chip">${textureOf(currentTexture())[1]}</span><span class="chip">☀️ 32°C · 10% rain</span>
+        </div>
+      </div>
+      <div class="section">SUITABLE CROPS</div>
+      ${matches.map(([name, emoji, pct, why, color], i) => `
+        <div class="match">
+          <div class="head" style="background:linear-gradient(135deg, ${color}, #4E9434)">
+            <div class="pct">${pct}% match</div><div class="name">${name}</div><div class="emoji">${emoji}</div>
+          </div>
+          <div class="why">${why}</div>
+          <div class="act"><button class="btn" onclick="ask(${i})">Plant ${name}</button></div>
+        </div>`).join('')}
+      <p class="sub" style="text-align:center">Squash is not listed because it is already growing on your farm.</p>`;
+    $('footer').innerHTML = '';
+  }
+
+  function ask(i) { state.crop = matches[i]; $('dlgTitle').textContent = `Plant ${state.crop[0]} today?`; $('scrim').classList.add('show'); }
+  function closeDlg() { $('scrim').classList.remove('show'); }
+  function plant() { closeDlg(); go(6); }
+
+  function s6() {
+    const [name, emoji] = state.crop ?? matches[0];
+    $('body').innerHTML = `
+      <div class="done">
+        <div class="big">${emoji}</div>
+        <h3>${name} is planted</h3>
+        <p class="sub">Day 1 of 70. Home now shows ${name} with readings from Sensor (${state.sensor ?? 'SG-4P9Q'}).</p>
+      </div>
+      <div class="card">
+        <div class="section" style="margin-top:0">HOME PREVIEW · ${name.toUpperCase()}</div>
+        <div class="grid">
+          <div class="stat"><div class="k">Moisture</div><div class="v">46%</div></div>
+          <div class="stat"><div class="k">pH</div><div class="v">6.3</div></div>
+          <div class="stat"><div class="k">Sensors</div><div class="v">1</div></div>
+          <div class="stat"><div class="k">Harvest</div><div class="v">69 days</div></div>
+        </div>
+      </div>`;
+    $('footer').innerHTML = `<button class="btn" onclick="alert('Opens Home with ${name} selected')">Go to Home</button>
+      <button class="btn ghost" onclick="Object.assign(state,{step:1,series:FARM_SERIES,texture:null,textureTouched:false,sensor:null,typed:'',typedErr:'',crop:null}); render()">Restart mock</button>`;
+  }
+
+  render();
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 /// Pushed page from Profile that lists every sensor and places it on a plot.
 ///
-/// The farmer picks the current crop, types a new sticker code, or moves a
-/// kit that is not on a plot yet. Lives outside the shell content swap.
+/// New kits and "Place on" go to the crop selected on Home / Farm (the farm
+/// can grow several crops). Lives outside the shell content swap.
 library;
 
 import 'package:flutter/material.dart';
@@ -17,6 +17,7 @@ import '../../../shared/widgets/app_refresh_scroll.dart';
 import '../../../shared/widgets/ui_primitives.dart';
 import '../../crops/data/crops_repository.dart';
 import '../../crops/data/planting.dart';
+import '../../crops/logic/selected_crop.dart';
 import '../../farm/data/farm_sensor.dart';
 import '../../farm/data/plot_sensors_repository.dart';
 import '../../farm/presentation/add_sensor_page.dart';
@@ -65,9 +66,11 @@ class _SensorsPageState extends State<SensorsPage> with LivePage {
       if (farmId == null) {
         throw StateError('No farm found. Finish onboarding first.');
       }
-      final planting = await withRefreshTimeout(
-        _crops.fetchActivePlanting(farmId),
+      final plantings = await withRefreshTimeout(
+        _crops.fetchActivePlantings(farmId),
       );
+      await SelectedCrop.instance.restore();
+      final planting = SelectedCrop.instance.resolve(plantings);
       final rows = await withRefreshTimeout(_sensors.listForFarm(farmId));
       if (!mounted) return;
       setState(() {

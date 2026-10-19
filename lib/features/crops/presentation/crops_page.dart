@@ -1,9 +1,11 @@
-/// Pushed crop list used when the Farm tab has no active planting.
+/// Pushed crop-match page, the last step of the Add a crop wizard (outside
+/// the app shell).
 ///
-/// Shows the latest soil line, weather, and ranked catalog matches. After the
-/// farmer confirms a crop, this page closes and the plan appears under that
-/// area on Farm. If a planting is already active when this page opens, the
-/// same plan panel is shown here and Change crop returns to the list.
+/// Ranks catalog crops for one new plot using that plot's own sensor reading,
+/// its soil (series, or texture as fallback), and this week's weather. Crops
+/// already growing on the farm are left out. Planting saves the plot soil on
+/// the planting, places the plot's sensor on it, selects the new crop, and
+/// closes with `true`.
 library;
 
 import 'package:flutter/material.dart';
@@ -22,23 +24,26 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/data/refresh_timeout.dart';
 import '../../../shared/widgets/app_refresh_scroll.dart';
 import '../../../shared/widgets/ui_primitives.dart';
+import '../../farm/data/plot_sensors_repository.dart';
 import '../../home/data/soil_reading.dart';
-import '../../home/data/soil_readings_repository.dart';
 import '../../shell/app_shell.dart';
 import '../../weather/data/farm_location_repository.dart';
 import '../../weather/data/open_meteo_weather_service.dart';
 import '../../weather/data/weather_models.dart';
 import '../data/crop_catalog.dart';
 import '../data/crops_repository.dart';
-import '../data/planting.dart';
+import '../data/plot_draft.dart';
 import '../logic/crop_match.dart';
 import '../logic/crops_match_ai_client.dart';
 import '../logic/crops_match_regen.dart';
-import 'crop_plan_panel.dart';
+import '../logic/selected_crop.dart';
 
-/// Crop list pushed from the Farm tab, or the plan when a planting is already active.
+/// Crop matches for [plot]. Pops `true` after a new crop is planted.
 class CropsPage extends StatefulWidget {
-  const CropsPage({super.key});
+  const CropsPage({required this.plot, super.key});
+
+  /// Soil + sensor answers from the wizard.
+  final PlotDraft plot;
 
   @override
   State<CropsPage> createState() => _CropsPageState();
@@ -46,7 +51,7 @@ class CropsPage extends StatefulWidget {
 
 class _CropsPageState extends State<CropsPage> with LivePage {
   final _cropsRepo = CropsRepository();
-  final _soilRepo = SoilReadingsRepository();
+  final _sensorsRepo = PlotSensorsRepository();
   final _farmRepo = FarmLocationRepository();
   final _weatherService = OpenMeteoWeatherService();
   final _aiRepo = SavedAssessmentRepository();
@@ -58,7 +63,9 @@ class _CropsPageState extends State<CropsPage> with LivePage {
   String? _farmId;
   SoilTexture? _farmSoilTexture;
   SoilSeries? _farmSoilSeries;
-  Planting? _planting;
+
+  /// Catalog ids already growing on this farm (hidden from the list).
+  Set<String> _plantedCropIds = {};
   SoilReading? _reading;
   List<CropCatalogEntry> _catalog = [];
   WeatherSnapshot? _weather;
@@ -84,9 +91,6 @@ class _CropsPageState extends State<CropsPage> with LivePage {
     await _reloadAll();
   }
 
-  /// Bumped on each reload so an open plan refetches care and water.
-  int _planEpoch = 0;
-
   /// AI catalog matches for list mode; null means use local fallback scores.
   List<CropMatch>? _aiMatches;
   Object? _matchAiError;
@@ -102,13 +106,15 @@ class _CropsPageState extends State<CropsPage> with LivePage {
     }
   }
 
-  /// Refetches farm, planting, soil, catalog, and weather, then match AI.
+  /// Refetches farm, planted crops, this plot's newest reading, catalog, and
+  /// weather, then match AI. Soil comes from the wizard (series, else texture).
   Future<void> _reloadAll() async {
     Object? err;
     String? farmId;
-    SoilTexture? farmSoilTexture;
-    SoilSeries? farmSoilSeries;
-    Planting? planting;
+    final plot = widget.plot;
+    final farmSoilTexture = plot.texture;
+    final farmSoilSeries = plot.series;
+    Set<String> plantedIds = {};
     SoilReading? reading;
     List<CropCatalogEntry> catalog = [];
     WeatherSnapshot? weather;
@@ -119,20 +125,22 @@ class _CropsPageState extends State<CropsPage> with LivePage {
       if (id == null) {
         throw StateError('No farm found. Finish onboarding first.');
       }
-      farmSoilTexture = await withRefreshTimeout(
-        _farmRepo.getPrimaryFarmSoilTexture(),
-      );
-      farmSoilSeries = await withRefreshTimeout(
-        _farmRepo.getPrimaryFarmSoilSeries(),
-      );
       await Future.wait([
         () async {
-          planting = await withRefreshTimeout(
-            _cropsRepo.fetchActivePlanting(id),
+          final active = await withRefreshTimeout(
+            _cropsRepo.fetchActivePlantings(id),
           );
+          plantedIds = {for (final p in active) p.cropId};
         }(),
         () async {
-          reading = await withRefreshTimeout(_soilRepo.fetchLatest());
+          final newer = await withRefreshTimeout(
+            _sensorsRepo.fetchReadingSince(
+              deviceId: plot.deviceId,
+              since: plot.reading.recordedAt,
+            ),
+          );
+          // Kit is not on this plot yet, so use the texture picked in the wizard.
+          reading = (newer ?? plot.reading).withWetness(plot.texture);
         }(),
         () async {
           catalog = await withRefreshTimeout(_cropsRepo.fetchCatalog());
@@ -158,11 +166,10 @@ class _CropsPageState extends State<CropsPage> with LivePage {
         _farmId = farmId;
         _farmSoilTexture = farmSoilTexture;
         _farmSoilSeries = farmSoilSeries;
-        _planting = planting;
+        _plantedCropIds = plantedIds;
         _reading = reading;
         _catalog = catalog;
         _loadError = null;
-        _planEpoch++;
         if (weatherErr == null) {
           _weather = weather;
           _weatherError = null;
@@ -174,7 +181,7 @@ class _CropsPageState extends State<CropsPage> with LivePage {
       }
     });
 
-    if (err == null && planting == null && reading != null) {
+    if (err == null && reading != null) {
       await _loadMatchAi();
     }
   }
@@ -274,18 +281,19 @@ class _CropsPageState extends State<CropsPage> with LivePage {
     );
   }
 
-  /// Confirm, plant the crop, then close so Farm shows the plan under the area.
+  /// Confirm, plant the crop as a new plot, select it, then close.
   Future<void> _selectCrop(CropCatalogEntry crop) async {
     final farmId = _farmId;
     if (farmId == null) return;
-    if (_planting != null || _selecting) return;
+    if (_selecting) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Plant ${crop.name} today?'),
         content: const Text(
-          'This starts a cultivation plan for this crop on your farm.',
+          'This adds a new crop plot on your farm with its own plan. '
+          'Your other crops stay as they are.',
         ),
         actions: [
           TextButton(
@@ -300,15 +308,41 @@ class _CropsPageState extends State<CropsPage> with LivePage {
       ),
     );
     if (confirmed != true || !mounted) return;
-    if (_planting != null || _selecting) return;
+    if (_selecting) return;
 
     setState(() {
       _selecting = true;
       _actionError = null;
     });
 
+    final plot = widget.plot;
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      await _cropsRepo.selectCrop(farmId: farmId, crop: crop);
+      final planted = await _cropsRepo.selectCrop(
+        farmId: farmId,
+        crop: crop,
+        soilTexture: plot.texture,
+        soilSeries: plot.series,
+        soilSeriesOther: plot.seriesOther,
+      );
+      await SelectedCrop.instance.select(planted.id);
+      // Crop exists now; a failed placement must not hide that, so report and close.
+      try {
+        await _sensorsRepo.placeOnPlot(
+          deviceId: plot.deviceId,
+          plantingId: planted.id,
+        );
+      } on Object catch (e) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              '${crop.name} is planted, but Sensor (${plot.claimCode}) '
+              'could not be placed: ${e is StateError ? e.message : e}. '
+              'Use Add sensor on Home.',
+            ),
+          ),
+        );
+      }
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on Object catch (e) {
@@ -320,29 +354,19 @@ class _CropsPageState extends State<CropsPage> with LivePage {
     }
   }
 
-  /// Change crop ended the planting. Show suitable crops on this page again.
-  Future<void> _onPlantingEnded() async {
-    setState(() {
-      _planting = null;
-      _actionError = null;
-    });
-    await _loadMatchAi();
-  }
-
   @override
   Widget build(BuildContext context) {
     final waitingFirst = !_loadDone && _loadError == null;
-    final planting = _planting;
     final reading = _reading;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const SoilGoodTopBar(title: 'Crops', leadingIcon: Icons.eco),
+      appBar: const SoilGoodTopBar(title: 'Choose a crop', leadingIcon: Icons.eco),
       body: AppRefreshScroll(
         onRefresh: _reloadAll,
         children: [
           Text(
-            planting == null ? 'Crop Matches' : 'Crop Plan',
+            'Crops for this plot',
             style: GoogleFonts.literata(
               fontSize: 28,
               fontWeight: FontWeight.w700,
@@ -350,9 +374,9 @@ class _CropsPageState extends State<CropsPage> with LivePage {
           ),
           const SizedBox(height: 4),
           Text(
-            planting == null
-                ? 'Crops that fit your latest soil snapshot and this week’s weather.'
-                : 'Timeline and care for the crop you selected.',
+            'Based on Sensor (${widget.plot.claimCode}), this plot’s soil, '
+            'and this week’s weather.'
+            '${_plantedCropIds.isEmpty ? '' : ' Crops already growing are not listed.'}',
             style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
           ),
           const SizedBox(height: 16),
@@ -368,12 +392,6 @@ class _CropsPageState extends State<CropsPage> with LivePage {
           ],
           if (waitingFirst)
             const _CropsFirstLoadSkeleton()
-          else if (planting != null)
-            CropPlanPanel(
-              planting: planting,
-              refreshGeneration: _planEpoch,
-              onPlantingEnded: _onPlantingEnded,
-            )
           else ...[
             if (_selecting) ...[
               const SoftCard(
@@ -394,7 +412,7 @@ class _CropsPageState extends State<CropsPage> with LivePage {
               ),
               const SizedBox(height: 12),
             ],
-            // Display-only: texture · series used for match (edit on Profile).
+            // Display-only: this plot's texture · series from the wizard.
             FarmSoilDisplayRow(
               texture: _farmSoilTexture,
               series: _farmSoilSeries,
@@ -405,7 +423,10 @@ class _CropsPageState extends State<CropsPage> with LivePage {
                 ) !=
                 null)
               const SizedBox(height: 12),
-            _SoilSnapshotCard(reading: reading),
+            _SoilSnapshotCard(
+              reading: reading,
+              title: 'Sensor (${widget.plot.claimCode}) right now',
+            ),
             const SizedBox(height: 12),
             _WeatherSnapshotCard(
               weather: _weather,
@@ -462,7 +483,7 @@ class _CropsPageState extends State<CropsPage> with LivePage {
     }
 
     // Prefer AI scores when loaded; fall back to local only when AI never loaded.
-    final suitable = _aiMatches ??
+    final scored = _aiMatches ??
         suitableMatches(
           scoreCropMatches(
             reading: reading,
@@ -472,6 +493,10 @@ class _CropsPageState extends State<CropsPage> with LivePage {
             farmSoilSeries: _farmSoilSeries,
           ),
         );
+    final suitable = [
+      for (final m in scored)
+        if (!_plantedCropIds.contains(m.crop.id)) m,
+    ];
 
     if (_matchAiLoading && _aiMatches == null && _matchAiError == null) {
       return const [];
@@ -508,9 +533,10 @@ class _CropsPageState extends State<CropsPage> with LivePage {
 }
 
 class _SoilSnapshotCard extends StatelessWidget {
-  const _SoilSnapshotCard({required this.reading});
+  const _SoilSnapshotCard({required this.reading, required this.title});
 
   final SoilReading? reading;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -520,7 +546,7 @@ class _SoilSnapshotCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Current soil snapshot',
+            title,
             style: GoogleFonts.literata(
               fontWeight: FontWeight.w700,
               fontSize: 16,
@@ -555,7 +581,7 @@ class _SoilSnapshotCard extends StatelessWidget {
 
     final m = r.moisturePercent;
     add(
-      m == null ? null : 'Moisture ${m.toStringAsFixed(0)}%',
+      m == null ? null : 'Wetness ${m.toStringAsFixed(0)}%',
       warn: m != null && (m < 30 || m > 85),
     );
     add(r.ph == null ? null : 'pH ${r.ph!.toStringAsFixed(1)}');

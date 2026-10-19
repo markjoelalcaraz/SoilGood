@@ -21,6 +21,15 @@ Universal fallback bands: [`insights.json`](../../supabase/functions/soilgood-in
 
 ## Hydro classes (mapped moisture %)
 
+These ranges use **wetness** (0 = bone dry, 100 = soaked), not the raw probe %.
+The probe reports volumetric water (VWC), which tops out near the soil's
+saturation (sandy ≈ 38, sandy loam ≈ 41, loam ≈ 43, clay loam ≈ 47, clay ≈ 50).
+The app converts each reading: `wetness = probe% / saturation(texture) × 100`
+(clamped to 100), using the plot's texture, else the farm texture, else loam.
+Code: `lib/core/soil/soil_wetness.dart` + `device_texture_resolver.dart`.
+Example: sandy loam, probe 18% → wetness ≈ 44% (inside class C). Stored rows
+keep the raw probe value; conversion happens on read.
+
 | Class | Moisture min–max | Crops |
 |---|---|---|
 | A Paddy | 60–100 | Rice |

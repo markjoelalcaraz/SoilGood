@@ -1,8 +1,13 @@
-/// Data model for one soil sensor sample used by the Home dashboard.
+/// Data model for one soil sensor sample, shared by Home, Farm, Crops, Analytics.
 ///
 /// Maps fields from the Supabase soil_readings table (moisture, pH, temp, EC,
-/// salinity, NPK, validation). Not a UI file — Home widgets display instances of this.
+/// salinity, NPK, validation). Repositories convert moisture to texture-aware
+/// wetness via [withWetness]; the raw probe % stays in [sensorMoisturePercent].
+/// Not a UI file.
 library;
+
+import '../../../core/soil/soil_texture.dart';
+import '../../../core/soil/soil_wetness.dart';
 
 /// One timestamped soil sensor sample from Supabase.
 class SoilReading {
@@ -11,6 +16,8 @@ class SoilReading {
     required this.recordedAt,
     this.deviceId,
     this.moisturePercent,
+    this.rawMoisturePercent,
+    this.wetnessTexture,
     this.ph,
     this.soilTemperatureC,
     this.ec,
@@ -27,7 +34,22 @@ class SoilReading {
 
   /// ESP32 that wrote this row. Null on older payloads that omit `device_id`.
   final String? deviceId;
+
+  /// Wetness 0–100 (100 = soaked) once [withWetness] ran; raw probe % before.
+  /// Every band, crop range, and AI input reads this value.
   final double? moisturePercent;
+
+  /// Probe % as stored in Supabase. Null until [withWetness] ran.
+  final double? rawMoisturePercent;
+
+  /// Texture used for the wetness conversion (null = default loam scale).
+  final SoilTexture? wetnessTexture;
+
+  /// True once [moisturePercent] holds wetness rather than the probe value.
+  bool get hasWetness => rawMoisturePercent != null;
+
+  /// Raw probe % ("Sensor 18%") for small print and the Serial Monitor check.
+  double? get sensorMoisturePercent => rawMoisturePercent ?? moisturePercent;
   final double? ph;
   final double? soilTemperatureC;
   final double? ec;
@@ -55,5 +77,37 @@ class SoilReading {
       validationStatus: (json['validation_status'] as String?) ?? 'ok',
       validationMessage: json['validation_message'] as String?,
     );
+  }
+
+  /// Copy whose [moisturePercent] is wetness for [texture].
+  ///
+  /// Always recomputes from the raw probe value, so calling it again with a
+  /// different texture (e.g. the plot's instead of the farm's) is safe.
+  SoilReading withWetness(SoilTexture? texture) {
+    final raw = sensorMoisturePercent;
+    return SoilReading(
+      id: id,
+      recordedAt: recordedAt,
+      deviceId: deviceId,
+      moisturePercent: raw == null ? null : wetnessFromSensor(raw, texture),
+      rawMoisturePercent: raw,
+      wetnessTexture: texture,
+      ph: ph,
+      soilTemperatureC: soilTemperatureC,
+      ec: ec,
+      salinity: salinity,
+      nitrogen: nitrogen,
+      phosphorus: phosphorus,
+      potassium: potassium,
+      validationStatus: validationStatus,
+      validationMessage: validationMessage,
+    );
+  }
+
+  /// Probe reads more water than [wetnessTexture] can hold — texture may be wrong.
+  bool get textureLooksWrong {
+    final raw = rawMoisturePercent;
+    if (raw == null) return false;
+    return sensorAboveTextureSaturation(raw, wetnessTexture);
   }
 }

@@ -2,8 +2,11 @@
 ///
 /// Produced by RPC `analytics_soil_daily`. Analytics charts and period captions
 /// use these buckets — not live Home readings and not every 15-minute row.
+/// Moisture is converted to texture-aware wetness by the repository.
 library;
 
+import '../../../core/soil/soil_texture.dart';
+import '../../../core/soil/soil_wetness.dart';
 import '../../home/data/soil_reading.dart';
 
 /// Daily avg/min/max for all 8 soil parameters plus how many raw rows that day.
@@ -97,6 +100,41 @@ class DailySoilBucket {
     );
   }
 
+  /// Copy with moisture avg/min/max as wetness (0–100) for [texture].
+  ///
+  /// Buckets mix every kit on the farm, so Analytics uses the farm texture.
+  DailySoilBucket withWetness(SoilTexture? texture) {
+    double? w(double? raw) => raw == null ? null : wetnessFromSensor(raw, texture);
+    return DailySoilBucket(
+      bucketDate: bucketDate,
+      readingCount: readingCount,
+      avgMoisture: w(avgMoisture),
+      minMoisture: w(minMoisture),
+      maxMoisture: w(maxMoisture),
+      avgPh: avgPh,
+      minPh: minPh,
+      maxPh: maxPh,
+      avgTemp: avgTemp,
+      minTemp: minTemp,
+      maxTemp: maxTemp,
+      avgEc: avgEc,
+      minEc: minEc,
+      maxEc: maxEc,
+      avgSalinity: avgSalinity,
+      minSalinity: minSalinity,
+      maxSalinity: maxSalinity,
+      avgNitrogen: avgNitrogen,
+      minNitrogen: minNitrogen,
+      maxNitrogen: maxNitrogen,
+      avgPhosphorus: avgPhosphorus,
+      minPhosphorus: minPhosphorus,
+      maxPhosphorus: maxPhosphorus,
+      avgPotassium: avgPotassium,
+      minPotassium: minPotassium,
+      maxPotassium: maxPotassium,
+    );
+  }
+
   static double? _d(Object? v) => (v as num?)?.toDouble();
 
   /// RPC date is `YYYY-MM-DD` (Manila calendar), not a timestamptz.
@@ -131,7 +169,7 @@ enum SoilMetric {
 
 extension SoilMetricChart on SoilMetric {
   String get label => switch (this) {
-    SoilMetric.moisture => 'Moisture',
+    SoilMetric.moisture => 'Wetness',
     SoilMetric.ph => 'pH',
     SoilMetric.temperature => 'Temp',
     SoilMetric.ec => 'EC',
